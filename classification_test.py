@@ -4,6 +4,8 @@ from mne.externals.pymatreader import read_mat
 from mne.stats import permutation_cluster_1samp_test as pcluster_test
 import pandas as pd
 from catboost import CatBoost
+import plotly.figure_factory as ff
+from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, confusion_matrix
 
 data_path = 'E:/YandexDisk/EEG/'
 data_file = 'preproc_data.mat'
@@ -41,27 +43,26 @@ time_right_im1 = mat_data['res'][0]['right_im1']['trial'][0].shape[0]
 time_right_im2 = mat_data['res'][0]['right_im2']['trial'][0].shape[0]
 min_time = min(time_right_real, time_right_quasi, time_right_im1, time_right_im2)
 
-data_right_real = np.empty(shape=(num_epochs, min_time, min_epoch_len))
-data_right_quasi = np.empty(shape=(num_epochs, min_time, min_epoch_len))
-data_right_im1 = np.empty(shape=(num_epochs, min_time, min_epoch_len))
-data_right_im2 = np.empty(shape=(num_epochs, min_time, min_epoch_len))
+data_right_real = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
+data_right_quasi = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
+data_right_im1 = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
+data_right_im2 = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
 
 
-def fill_data(data, raw_data, move_type):
+def fill_data(data, raw_data, move_type, epoch_len):
     curr_epoch = 0
     for subject_id in range(0, len(raw_data['res'])):
         if len(raw_data['res'][subject_id]) > 0:
             for epoch_id in range(0, len(raw_data['res'][0][move_type]['trial'])):
-                min_epoch_len = data.shape[2]
-                data[curr_epoch, :, :] = raw_data['res'][subject_id][move_type]['trial'][epoch_id][:, - min_epoch_len:]
+                data[curr_epoch, :, :] = raw_data['res'][subject_id][move_type]['trial'][epoch_id][:, 5000:epoch_len]
                 curr_epoch += 1
     return data
 
 
-data_right_real = fill_data(data_right_real, mat_data, 'right_real')
-data_right_quasi = fill_data(data_right_quasi, mat_data, 'right_quasi')
-data_right_im1 = fill_data(data_right_im1, mat_data, 'right_im1')
-data_right_im2 = fill_data(data_right_im2, mat_data, 'right_im2')
+data_right_real = fill_data(data_right_real, mat_data, 'right_real', min_epoch_len)
+data_right_quasi = fill_data(data_right_quasi, mat_data, 'right_quasi', min_epoch_len)
+data_right_im1 = fill_data(data_right_im1, mat_data, 'right_im1', min_epoch_len)
+data_right_im2 = fill_data(data_right_im2, mat_data, 'right_im2', min_epoch_len)
 
 all_data = np.concatenate((data_right_real, data_right_quasi, data_right_im1, data_right_im2), axis=0)
 
@@ -69,7 +70,7 @@ freq_bands = [('Delta', 0, 4), ('Theta', 4, 8), ('Alpha', 8, 12), ('Beta', 12, 3
 
 
 def get_band_features(data, bands):
-    band_features = np.empty(shape=(data.shape[0], data.shape[1] * 5 * 4))
+    band_features = np.empty(shape=(data.shape[0], data.shape[1] * 5 * 5))
     band_features_names = list()
     band_id = 0
     for band, f_min, f_max in bands:
@@ -81,11 +82,13 @@ def get_band_features(data, bands):
         for lead_id in range(0, filtered_data.shape[1]):
             curr_lead = filtered_epochs.ch_names[lead_id]
             band_features_names.append('_'.join([band, 'mean', curr_lead]))
+            band_features_names.append('_'.join([band, 'median', curr_lead]))
             band_features_names.append('_'.join([band, 'std', curr_lead]))
             band_features_names.append('_'.join([band, 'max', curr_lead]))
             band_features_names.append('_'.join([band, 'min', curr_lead]))
             for epoch_id in range(0, filtered_data.shape[0]):
                 band_features[epoch_id, (band_id + 1) * 4 * lead_id] = np.mean(filtered_data[epoch_id, lead_id, :])
+                band_features[epoch_id, (band_id + 1) * 4 * lead_id] = np.median(filtered_data[epoch_id, lead_id, :])
                 band_features[epoch_id, (band_id + 1) * 4 * lead_id + 1] = np.std(filtered_data[epoch_id, lead_id, :])
                 band_features[epoch_id, (band_id + 1) * 4 * lead_id + 2] = np.max(filtered_data[epoch_id, lead_id, :])
                 band_features[epoch_id, (band_id + 1) * 4 * lead_id + 3] = np.min(filtered_data[epoch_id, lead_id, :])
@@ -131,19 +134,20 @@ all_names = band_features_names_right_real
 all_classes = [0] * band_features_right_real.shape[0] + [1] * band_features_right_quasi.shape[0] + \
               [2] * band_features_right_im1.shape[0] + [3] * band_features_right_im2.shape[0]
 
-train_features = np.concatenate((band_features_right_real[:250, :], band_features_right_quasi[:250, :],
-                                 band_features_right_im1[:250, :], band_features_right_im2[:250, :]), axis=0)
-val_features = np.concatenate((band_features_right_real[250:, :], band_features_right_quasi[250:, :],
-                               band_features_right_im1[250:, :], band_features_right_im2[250:, :]), axis=0)
+train_features = np.concatenate((band_features_right_real[30:, :], band_features_right_quasi[30:, :],
+                                 band_features_right_im1[30:, :], band_features_right_im2[30:, :]), axis=0)
+val_features = np.concatenate((band_features_right_real[:30, :], band_features_right_quasi[:30, :],
+                               band_features_right_im1[:30, :], band_features_right_im2[:30, :]), axis=0)
 
-train_classes = [0] * band_features_right_real[:250, :].shape[0] + \
-                [1] * band_features_right_quasi[:250, :].shape[0] + \
-                [2] * band_features_right_im1[:250, :].shape[0] + \
-                [3] * band_features_right_im2[:250, :].shape[0]
-val_classes = [0] * band_features_right_real[250:, :].shape[0] + \
-              [1] * band_features_right_quasi[250:, :].shape[0] + \
-              [2] * band_features_right_im1[250:, :].shape[0] + \
-              [3] * band_features_right_im2[250:, :].shape[0]
+train_classes = [0] * band_features_right_real[30:, :].shape[0] + \
+                [1] * band_features_right_quasi[30:, :].shape[0] + \
+                [2] * band_features_right_im1[30:, :].shape[0] + \
+                [3] * band_features_right_im2[30:, :].shape[0]
+val_classes = [0] * band_features_right_real[:30, :].shape[0] + \
+              [1] * band_features_right_quasi[:30, :].shape[0] + \
+              [2] * band_features_right_im1[:30, :].shape[0] + \
+              [3] * band_features_right_im2[:30, :].shape[0]
+classes_names = ['real', 'quasi', 'im1', 'im2']
 
 model_params = {'classes_count': 4,
                 'loss_function': 'MultiClass',
@@ -160,8 +164,128 @@ model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
 model.set_feature_names(all_names)
 model.save_model(f"epoch_{model.best_iteration_}.model")
 
-train_pred_probs = model.predict(train_features, prediction_type="Class")
-val_pred_probs = model.predict(val_features, prediction_type="Class")
+train_pred = model.predict(train_features, prediction_type="Class")
+val_pred = model.predict(val_features, prediction_type="Class")
 
-metrics_summary = {'f1_weighted': 'max', 'auroc_weighted': 'max'}
-metrics = [metrics_classes_dict[m]() for m in metrics_summary]
+y_train_real = train_classes
+y_train_pred = train_pred
+y_val_real = val_classes
+y_val_pred = val_pred
+
+metrics_dict = {'train': [], 'val': []}
+
+m_val = f1_score(y_train_real, y_train_pred, average='weighted')
+metrics_dict['train'].append(m_val)
+m_val = f1_score(y_val_real, y_val_pred, average='weighted')
+metrics_dict['val'].append(m_val)
+'''
+m_val = roc_auc_score(y_train_real, y_train_pred, average='weighted', multi_class='ovo')
+metrics_dict['train'].append(m_val)
+m_val = roc_auc_score(y_val_real, y_val_pred, average='weighted', multi_class='ovo')
+metrics_dict['val'].append(m_val)
+'''
+m_val = accuracy_score(y_train_real, y_train_pred)
+metrics_dict['train'].append(m_val)
+m_val = accuracy_score(y_val_real, y_val_pred)
+metrics_dict['val'].append(m_val)
+
+conf_mtx_train = confusion_matrix(y_train_real, y_train_pred)
+conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
+
+
+def save_figure(fig, fn, width=800, height=600, scale=2):
+    fig.write_image(f"{fn}.png")
+    fig.write_image(f"{fn}.pdf")
+
+
+fig = ff.create_annotated_heatmap(conf_mtx_val, x=classes_names, y=classes_names, colorscale='Viridis')
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=0.5,
+                        y=-0.1,
+                        showarrow=False,
+                        text="Predicted value",
+                        xref="paper",
+                        yref="paper"))
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=-0.33,
+                        y=0.5,
+                        showarrow=False,
+                        text="Real value",
+                        textangle=-90,
+                        xref="paper",
+                        yref="paper"))
+fig.update_layout(margin=dict(t=50, l=200))
+fig['data'][0]['showscale'] = True
+save_figure(fig, "confusion_matrix_val")
+
+metrics_df = pd.DataFrame.from_dict(metrics_dict)
+metrics_df.to_excel("metrics.xlsx", index=True)
+
+########################################
+
+train_features = np.concatenate((band_features_right_real[30:, :], band_features_right_quasi[30:, :]), axis=0)
+val_features = np.concatenate((band_features_right_real[:30, :], band_features_right_quasi[:30, :]), axis=0)
+
+train_classes = [0] * band_features_right_real[30:, :].shape[0] + [1] * band_features_right_quasi[30:, :].shape[0]
+val_classes = [0] * band_features_right_real[:30, :].shape[0] + [1] * band_features_right_quasi[:30, :].shape[0]
+classes_names = ['real', 'quasi']
+
+model_params = {'loss_function': 'Logloss',
+                'learning_rate': 0.03,
+                'depth': 6,
+                'min_data_in_leaf': 1,
+                'max_leaves': 31,
+                'verbose': 1,
+                'iterations': 500,
+                'early_stopping_rounds': 100}
+
+model = CatBoost(params=model_params)
+model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
+model.set_feature_names(all_names)
+model.save_model(f"epoch_{model.best_iteration_}.model")
+
+train_pred = model.predict(train_features, prediction_type="Class")
+val_pred = model.predict(val_features, prediction_type="Class")
+
+y_train_real = train_classes
+y_train_pred = train_pred
+y_val_real = val_classes
+y_val_pred = val_pred
+
+metrics_dict = {'train': [], 'val': []}
+
+m_val = f1_score(y_train_real, y_train_pred, average='weighted')
+metrics_dict['train'].append(m_val)
+m_val = f1_score(y_val_real, y_val_pred, average='weighted')
+metrics_dict['val'].append(m_val)
+
+m_val = accuracy_score(y_train_real, y_train_pred)
+metrics_dict['train'].append(m_val)
+m_val = accuracy_score(y_val_real, y_val_pred)
+metrics_dict['val'].append(m_val)
+
+conf_mtx_train = confusion_matrix(y_train_real, y_train_pred)
+conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
+
+fig = ff.create_annotated_heatmap(conf_mtx_val, x=classes_names, y=classes_names, colorscale='Viridis')
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=0.5,
+                        y=-0.1,
+                        showarrow=False,
+                        text="Predicted value",
+                        xref="paper",
+                        yref="paper"))
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=-0.33,
+                        y=0.5,
+                        showarrow=False,
+                        text="Real value",
+                        textangle=-90,
+                        xref="paper",
+                        yref="paper"))
+fig.update_layout(margin=dict(t=50, l=200))
+fig['data'][0]['showscale'] = True
+save_figure(fig, "confusion_matrix_val_binary")
+
+metrics_df = pd.DataFrame.from_dict(metrics_dict)
+metrics_df.to_excel("metrics_binary.xlsx", index=True)
