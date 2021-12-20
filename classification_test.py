@@ -6,6 +6,8 @@ import pandas as pd
 from catboost import CatBoost
 import plotly.figure_factory as ff
 from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, confusion_matrix
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
 
 data_path = 'E:/YandexDisk/EEG/'
 data_file = 'preproc_data.mat'
@@ -43,10 +45,10 @@ time_right_im1 = mat_data['res'][0]['right_im1']['trial'][0].shape[0]
 time_right_im2 = mat_data['res'][0]['right_im2']['trial'][0].shape[0]
 min_time = min(time_right_real, time_right_quasi, time_right_im1, time_right_im2)
 
-data_right_real = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
-data_right_quasi = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
-data_right_im1 = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
-data_right_im2 = np.empty(shape=(num_epochs, min_time, min_epoch_len-5000))
+data_right_real = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
+data_right_quasi = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
+data_right_im1 = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
+data_right_im2 = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
 
 
 def fill_data(data, raw_data, move_type, epoch_len):
@@ -134,19 +136,23 @@ all_names = band_features_names_right_real
 all_classes = [0] * band_features_right_real.shape[0] + [1] * band_features_right_quasi.shape[0] + \
               [2] * band_features_right_im1.shape[0] + [3] * band_features_right_im2.shape[0]
 
-train_features = np.concatenate((band_features_right_real[30:, :], band_features_right_quasi[30:, :],
-                                 band_features_right_im1[30:, :], band_features_right_im2[30:, :]), axis=0)
-val_features = np.concatenate((band_features_right_real[:30, :], band_features_right_quasi[:30, :],
-                               band_features_right_im1[:30, :], band_features_right_im2[:30, :]), axis=0)
+all_classes_names = ['real'] * band_features_right_real.shape[0] + ['quasi'] * band_features_right_quasi.shape[0] + \
+                    ['im1'] * band_features_right_im1.shape[0] + ['im2'] * band_features_right_im2.shape[0]
 
-train_classes = [0] * band_features_right_real[30:, :].shape[0] + \
-                [1] * band_features_right_quasi[30:, :].shape[0] + \
-                [2] * band_features_right_im1[30:, :].shape[0] + \
-                [3] * band_features_right_im2[30:, :].shape[0]
-val_classes = [0] * band_features_right_real[:30, :].shape[0] + \
-              [1] * band_features_right_quasi[:30, :].shape[0] + \
-              [2] * band_features_right_im1[:30, :].shape[0] + \
-              [3] * band_features_right_im2[:30, :].shape[0]
+df = pd.DataFrame(np.concatenate((all_features, np.c_[all_classes_names]), axis=1),
+                  columns=all_names + ['class'])
+df.to_excel("dataframe.xlsx", header=True, index=False)
+
+ids_train, ids_val = train_test_split(np.arange(len(all_classes)),
+                                      test_size=0.2,
+                                      stratify=all_classes)
+
+train_features = all_features[ids_train, :]
+val_features = all_features[ids_val, :]
+
+train_classes = [all_classes[i] for i in list(ids_train)]
+val_classes = [all_classes[i] for i in list(ids_val)]
+
 classes_names = ['real', 'quasi', 'im1', 'im2']
 
 model_params = {'classes_count': 4,
@@ -156,13 +162,13 @@ model_params = {'classes_count': 4,
                 'min_data_in_leaf': 1,
                 'max_leaves': 31,
                 'verbose': 1,
-                'iterations': 500,
+                'iterations': 1000,
                 'early_stopping_rounds': 100}
 
 model = CatBoost(params=model_params)
 model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
 model.set_feature_names(all_names)
-model.save_model(f"epoch_{model.best_iteration_}.model")
+# model.save_model(f"epoch_{model.best_iteration_}.model")
 
 train_pred = model.predict(train_features, prediction_type="Class")
 val_pred = model.predict(val_features, prediction_type="Class")
@@ -216,33 +222,42 @@ fig.add_annotation(dict(font=dict(color="black", size=14),
                         yref="paper"))
 fig.update_layout(margin=dict(t=50, l=200))
 fig['data'][0]['showscale'] = True
-save_figure(fig, "confusion_matrix_val")
+save_figure(fig, "confusion_matrix_val_cat")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("metrics.xlsx", index=True)
+metrics_df.to_excel("metrics_cat.xlsx", index=True)
 
 ########################################
 
-train_features = np.concatenate((band_features_right_real[30:, :], band_features_right_quasi[30:, :]), axis=0)
-val_features = np.concatenate((band_features_right_real[:30, :], band_features_right_quasi[:30, :]), axis=0)
+binary_features = np.concatenate((band_features_right_real, band_features_right_quasi), axis=0)
+binary_names = band_features_names_right_real
+binary_classes = [0] * band_features_right_real.shape[0] + [1] * band_features_right_quasi.shape[0]
 
-train_classes = [0] * band_features_right_real[30:, :].shape[0] + [1] * band_features_right_quasi[30:, :].shape[0]
-val_classes = [0] * band_features_right_real[:30, :].shape[0] + [1] * band_features_right_quasi[:30, :].shape[0]
+ids_train, ids_val = train_test_split(np.arange(len(binary_classes)),
+                                      test_size=0.2,
+                                      stratify=binary_classes)
+
+train_features = binary_features[ids_train, :]
+val_features = binary_features[ids_val, :]
+
+train_classes = [binary_classes[i] for i in list(ids_train)]
+val_classes = [binary_classes[i] for i in list(ids_val)]
+
 classes_names = ['real', 'quasi']
 
 model_params = {'loss_function': 'Logloss',
-                'learning_rate': 0.03,
+                'learning_rate': 0.01,
                 'depth': 6,
                 'min_data_in_leaf': 1,
                 'max_leaves': 31,
                 'verbose': 1,
-                'iterations': 500,
+                'iterations': 1000,
                 'early_stopping_rounds': 100}
 
 model = CatBoost(params=model_params)
 model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
 model.set_feature_names(all_names)
-model.save_model(f"epoch_{model.best_iteration_}.model")
+# model.save_model(f"epoch_{model.best_iteration_}.model")
 
 train_pred = model.predict(train_features, prediction_type="Class")
 val_pred = model.predict(val_features, prediction_type="Class")
@@ -285,7 +300,180 @@ fig.add_annotation(dict(font=dict(color="black", size=14),
                         yref="paper"))
 fig.update_layout(margin=dict(t=50, l=200))
 fig['data'][0]['showscale'] = True
-save_figure(fig, "confusion_matrix_val_binary")
+save_figure(fig, "confusion_matrix_val_cat_binary")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("metrics_binary.xlsx", index=True)
+metrics_df.to_excel("metrics_cat_binary.xlsx", index=True)
+
+########################################
+
+ids_train, ids_val = train_test_split(np.arange(len(all_classes)),
+                                      test_size=0.2,
+                                      stratify=all_classes)
+
+train_features = all_features[ids_train, :]
+val_features = all_features[ids_val, :]
+
+train_classes = [all_classes[i] for i in list(ids_train)]
+val_classes = [all_classes[i] for i in list(ids_val)]
+
+classes_names = ['real', 'quasi', 'im1', 'im2']
+
+dmat_train = xgb.DMatrix(train_features, train_classes, feature_names=all_names)
+dmat_val = xgb.DMatrix(val_features, val_classes, feature_names=all_names)
+
+model_params = {
+    'num_class': 4,
+    'booster': 'gbtree',
+    'eta': 0.3,
+    'max_depth': 6,
+    'gamma': 0,
+    'sampling_method': 'uniform',
+    'subsample': 1,
+    'objective': 'multi:softprob',
+    'verbosity': 1,
+}
+
+num_boost_round = 1000
+early_stopping_rounds = 100
+bst = xgb.train(
+    params=model_params,
+    dtrain=dmat_train,
+    evals=[(dmat_train, "train"), (dmat_val, "val")],
+    num_boost_round=num_boost_round,
+    early_stopping_rounds=early_stopping_rounds
+)
+# bst.save_model(f"epoch_{bst.best_iteration}.model")
+
+train_pred = bst.predict(dmat_train)
+val_pred = bst.predict(dmat_val)
+
+y_train_real = train_classes
+y_train_pred = np.argmax(train_pred, 1)
+y_val_real = val_classes
+y_val_pred = np.argmax(val_pred, 1)
+
+metrics_dict = {'train': [], 'val': []}
+
+m_val = f1_score(y_train_real, y_train_pred, average='weighted')
+metrics_dict['train'].append(m_val)
+m_val = f1_score(y_val_real, y_val_pred, average='weighted')
+metrics_dict['val'].append(m_val)
+
+m_val = accuracy_score(y_train_real, y_train_pred)
+metrics_dict['train'].append(m_val)
+m_val = accuracy_score(y_val_real, y_val_pred)
+metrics_dict['val'].append(m_val)
+
+conf_mtx_train = confusion_matrix(y_train_real, y_train_pred)
+conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
+
+fig = ff.create_annotated_heatmap(conf_mtx_val, x=classes_names, y=classes_names, colorscale='Viridis')
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=0.5,
+                        y=-0.1,
+                        showarrow=False,
+                        text="Predicted value",
+                        xref="paper",
+                        yref="paper"))
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=-0.33,
+                        y=0.5,
+                        showarrow=False,
+                        text="Real value",
+                        textangle=-90,
+                        xref="paper",
+                        yref="paper"))
+fig.update_layout(margin=dict(t=50, l=200))
+fig['data'][0]['showscale'] = True
+save_figure(fig, "confusion_matrix_val_xgb")
+
+metrics_df = pd.DataFrame.from_dict(metrics_dict)
+metrics_df.to_excel("metrics_xgb.xlsx", index=True)
+
+########################################
+
+ids_train, ids_val = train_test_split(np.arange(len(binary_classes)),
+                                      test_size=0.2,
+                                      stratify=binary_classes)
+
+train_features = binary_features[ids_train, :]
+val_features = binary_features[ids_val, :]
+
+train_classes = [binary_classes[i] for i in list(ids_train)]
+val_classes = [binary_classes[i] for i in list(ids_val)]
+
+classes_names = ['real', 'quasi']
+
+dmat_train = xgb.DMatrix(train_features, train_classes, feature_names=all_names)
+dmat_val = xgb.DMatrix(val_features, val_classes, feature_names=all_names)
+
+model_params = {
+    'num_class': 2,
+    'booster': 'gbtree',
+    'eta': 0.3,
+    'max_depth': 6,
+    'gamma': 0,
+    'sampling_method': 'uniform',
+    'subsample': 1,
+    'objective': 'multi:softprob',
+    'verbosity': 1,
+}
+
+num_boost_round = 1000
+early_stopping_rounds = 100
+bst = xgb.train(
+    params=model_params,
+    dtrain=dmat_train,
+    evals=[(dmat_train, "train"), (dmat_val, "val")],
+    num_boost_round=num_boost_round,
+    early_stopping_rounds=early_stopping_rounds
+)
+# bst.save_model(f"epoch_{bst.best_iteration}.model")
+
+train_pred = bst.predict(dmat_train)
+val_pred = bst.predict(dmat_val)
+
+y_train_real = train_classes
+y_train_pred = np.argmax(train_pred, 1)
+y_val_real = val_classes
+y_val_pred = np.argmax(val_pred, 1)
+
+metrics_dict = {'train': [], 'val': []}
+
+m_val = f1_score(y_train_real, y_train_pred, average='weighted')
+metrics_dict['train'].append(m_val)
+m_val = f1_score(y_val_real, y_val_pred, average='weighted')
+metrics_dict['val'].append(m_val)
+
+m_val = accuracy_score(y_train_real, y_train_pred)
+metrics_dict['train'].append(m_val)
+m_val = accuracy_score(y_val_real, y_val_pred)
+metrics_dict['val'].append(m_val)
+
+conf_mtx_train = confusion_matrix(y_train_real, y_train_pred)
+conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
+
+fig = ff.create_annotated_heatmap(conf_mtx_val, x=classes_names, y=classes_names, colorscale='Viridis')
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=0.5,
+                        y=-0.1,
+                        showarrow=False,
+                        text="Predicted value",
+                        xref="paper",
+                        yref="paper"))
+fig.add_annotation(dict(font=dict(color="black", size=14),
+                        x=-0.33,
+                        y=0.5,
+                        showarrow=False,
+                        text="Real value",
+                        textangle=-90,
+                        xref="paper",
+                        yref="paper"))
+fig.update_layout(margin=dict(t=50, l=200))
+fig['data'][0]['showscale'] = True
+save_figure(fig, "confusion_matrix_val_xgb_binary")
+
+metrics_df = pd.DataFrame.from_dict(metrics_dict)
+metrics_df.to_excel("metrics_xgb_binary.xlsx", index=True)
+
