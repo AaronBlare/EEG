@@ -8,6 +8,11 @@ import plotly.figure_factory as ff
 from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, confusion_matrix
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
+import shap
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+shap.initjs()
 
 data_path = 'E:/YandexDisk/EEG/'
 data_file = 'preproc_data.mat'
@@ -172,11 +177,15 @@ model.set_feature_names(all_names)
 
 train_pred = model.predict(train_features, prediction_type="Class")
 val_pred = model.predict(val_features, prediction_type="Class")
+val_pred_probs = model.predict(val_features, prediction_type="Probability")
 
 y_train_real = train_classes
-y_train_pred = train_pred
+y_train_pred = [item[0] for item in train_pred]
 y_val_real = val_classes
-y_val_pred = val_pred
+y_val_pred = [item[0] for item in val_pred]
+
+is_correct_pred = (np.array(y_val_real) == np.array(y_val_pred))
+mistakes_ids = np.where(is_correct_pred == False)[0]
 
 metrics_dict = {'train': [], 'val': []}
 
@@ -195,13 +204,100 @@ metrics_dict['train'].append(m_val)
 m_val = accuracy_score(y_val_real, y_val_pred)
 metrics_dict['val'].append(m_val)
 
+
+def proba(X):
+    y = model.predict(X, prediction_type='Probability')
+    return y
+
+
+explainer = shap.KernelExplainer(proba, data=val_features)
+shap_values = explainer.shap_values(val_features)
+
+shap.summary_plot(
+    shap_values=shap_values,
+    features=val_features,
+    feature_names=all_names,
+    max_display=30,
+    class_names=classes_names,
+    class_inds=list(range(len(classes_names))),
+    plot_size=(18, 10),
+    show=False,
+    color=plt.get_cmap("Set1")
+)
+plt.savefig('figures/SHAP_bar.png')
+plt.savefig('figures/SHAP_bar.pdf')
+plt.close()
+
+for st_id, st in enumerate(classes_names):
+    shap.summary_plot(
+        shap_values=shap_values[st_id],
+        features=val_features,
+        feature_names=all_names,
+        max_display=30,
+        plot_size=(18, 10),
+        plot_type="violin",
+        title=st,
+        show=False
+    )
+    plt.savefig(f"figures/{st}_beeswarm.png")
+    plt.savefig(f"figures/{st}_beeswarm.pdf")
+    plt.close()
+
+for m_id in mistakes_ids:
+    subj_cl = y_val_real[m_id]
+    subj_pred_cl = y_val_pred[m_id]
+    for st_id, st in enumerate(classes_names):
+        shap.waterfall_plot(
+            shap.Explanation(
+                values=shap_values[st_id][m_id],
+                base_values=explainer.expected_value[st_id],
+                data=val_features[m_id],
+                feature_names=all_names
+            ),
+            max_display=30,
+            show=False
+        )
+        fig = plt.gcf()
+        fig.set_size_inches(18, 10, forward=True)
+        Path(f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}").mkdir(parents=True,
+                                                                                                        exist_ok=True)
+        fig.savefig(
+            f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}/waterfall_{st}.pdf")
+        fig.savefig(
+            f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}/waterfall_{st}.png")
+        plt.close()
+
+passed_examples = {x: 0 for x in range(len(classes_names))}
+for subj_id in range(val_features.shape[0]):
+    subj_cl = y_val_real[subj_id]
+    if passed_examples[subj_cl] < len(y_train_real):
+        for st_id, st in enumerate(classes_names):
+            shap.waterfall_plot(
+                shap.Explanation(
+                    values=shap_values[st_id][subj_id],
+                    base_values=explainer.expected_value[st_id],
+                    data=val_features[subj_id],
+                    feature_names=all_names
+                ),
+                max_display=30,
+                show=False
+            )
+            fig = plt.gcf()
+            fig.set_size_inches(18, 10, forward=True)
+            Path(f"figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}").mkdir(parents=True,
+                                                                                                 exist_ok=True)
+            fig.savefig(f"figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}/waterfall_{st}.pdf")
+            fig.savefig(f"figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}/waterfall_{st}.png")
+            plt.close()
+        passed_examples[subj_cl] += 1
+
 conf_mtx_train = confusion_matrix(y_train_real, y_train_pred)
 conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
 
 
 def save_figure(fig, fn, width=800, height=600, scale=2):
-    fig.write_image(f"{fn}.png")
-    fig.write_image(f"{fn}.pdf")
+    fig.write_image(f"figures/{fn}.png")
+    fig.write_image(f"figures/{fn}.pdf")
 
 
 fig = ff.create_annotated_heatmap(conf_mtx_val, x=classes_names, y=classes_names, colorscale='Viridis')
@@ -225,7 +321,7 @@ fig['data'][0]['showscale'] = True
 save_figure(fig, "confusion_matrix_val_cat")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("metrics_cat.xlsx", index=True)
+metrics_df.to_excel("figures/metrics_cat.xlsx", index=True)
 
 ########################################
 
@@ -303,7 +399,7 @@ fig['data'][0]['showscale'] = True
 save_figure(fig, "confusion_matrix_val_cat_binary")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("metrics_cat_binary.xlsx", index=True)
+metrics_df.to_excel("figures/metrics_cat_binary.xlsx", index=True)
 
 ########################################
 
@@ -389,7 +485,7 @@ fig['data'][0]['showscale'] = True
 save_figure(fig, "confusion_matrix_val_xgb")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("metrics_xgb.xlsx", index=True)
+metrics_df.to_excel("figures/metrics_xgb.xlsx", index=True)
 
 ########################################
 
@@ -475,5 +571,4 @@ fig['data'][0]['showscale'] = True
 save_figure(fig, "confusion_matrix_val_xgb_binary")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("metrics_xgb_binary.xlsx", index=True)
-
+metrics_df.to_excel("figures/metrics_xgb_binary.xlsx", index=True)
