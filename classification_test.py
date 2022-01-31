@@ -108,32 +108,6 @@ band_features_right_real, band_features_names_right_real = get_band_features(dat
 band_features_right_quasi, band_features_names_right_quasi = get_band_features(data_right_quasi, freq_bands)
 band_features_right_im1, band_features_names_right_im1 = get_band_features(data_right_im1, freq_bands)
 band_features_right_im2, band_features_names_right_im2 = get_band_features(data_right_im2, freq_bands)
-'''
-spec_bands = [('Spec', 1, 45)]
-
-
-def get_spec_features(data, data_info, bands):
-    spec_features = np.empty(shape=(data.shape[0], data.shape[1]))
-    spec_features_names = list()
-    for band, f_min, f_max in bands:
-        spec_features_names.extend([band + lead for lead in data_info.ch_names])
-        ssd = mne.decoding.SSD(info=data_info,
-                               reg='oas',
-                               filt_params_signal=dict(l_freq=f_min, h_freq=f_max,
-                                                       l_trans_bandwidth=1, h_trans_bandwidth=1),
-                               filt_params_noise=dict(l_freq=f_min - 1, h_freq=f_max + 1,
-                                                      l_trans_bandwidth=1, h_trans_bandwidth=1))
-        for epoch_id in range(0, data.shape[0]):
-            ssd.fit(X=data[epoch_id, :, :].copy())
-            ssd_sources = ssd.transform(X=data.copy())
-            spec_ratio, sorter = ssd.get_spectral_ratio(ssd_sources)
-            spec_features[epoch_id, :] = spec_ratio
-    return spec_features, spec_features_names
-
-
-spec_features_right_real, spec_features_names_right_real = get_spec_features(data_right_real, data_info, spec_bands)
-spec_features_right_quasi, spec_features_names_right_quasi = get_spec_features(data_right_quasi, data_info, spec_bands)
-'''
 
 all_features = np.concatenate((band_features_right_real, band_features_right_quasi,
                                band_features_right_im1, band_features_right_im2), axis=0)
@@ -146,7 +120,6 @@ all_classes_names = ['real'] * band_features_right_real.shape[0] + ['quasi'] * b
 
 df = pd.DataFrame(np.concatenate((all_features, np.c_[all_classes_names]), axis=1),
                   columns=all_names + ['class'])
-df.to_excel("dataframe.xlsx", header=True, index=False)
 
 ids_train, ids_val = train_test_split(np.arange(len(all_classes)),
                                       test_size=0.2,
@@ -162,18 +135,17 @@ classes_names = ['real', 'quasi', 'im1', 'im2']
 
 model_params = {'classes_count': 4,
                 'loss_function': 'MultiClass',
-                'learning_rate': 0.03,
+                'learning_rate': 0.06,
                 'depth': 6,
                 'min_data_in_leaf': 1,
                 'max_leaves': 31,
                 'verbose': 1,
-                'iterations': 1000,
+                'iterations': 5000,
                 'early_stopping_rounds': 100}
 
 model = CatBoost(params=model_params)
 model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
 model.set_feature_names(all_names)
-# model.save_model(f"epoch_{model.best_iteration_}.model")
 
 train_pred = model.predict(train_features, prediction_type="Class")
 val_pred = model.predict(val_features, prediction_type="Class")
@@ -193,12 +165,7 @@ m_val = f1_score(y_train_real, y_train_pred, average='weighted')
 metrics_dict['train'].append(m_val)
 m_val = f1_score(y_val_real, y_val_pred, average='weighted')
 metrics_dict['val'].append(m_val)
-'''
-m_val = roc_auc_score(y_train_real, y_train_pred, average='weighted', multi_class='ovo')
-metrics_dict['train'].append(m_val)
-m_val = roc_auc_score(y_val_real, y_val_pred, average='weighted', multi_class='ovo')
-metrics_dict['val'].append(m_val)
-'''
+
 m_val = accuracy_score(y_train_real, y_train_pred)
 metrics_dict['train'].append(m_val)
 m_val = accuracy_score(y_val_real, y_val_pred)
@@ -210,8 +177,21 @@ def proba(X):
     return y
 
 
-explainer = shap.KernelExplainer(proba, data=val_features)
-shap_values = explainer.shap_values(val_features)
+#explainer = shap.KernelExplainer(proba, data=val_features[:, :5])
+#shap_values = explainer.shap_values(val_features[:, :5])
+
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(train_features)
+
+for st_id, st in enumerate(classes_names):
+    class_shap_values = shap_values[st_id]
+    d = {'epochs': ids_val}
+    for f_id in range(0, len(val_features[0, :5])):
+        curr_shap = class_shap_values[:, f_id]
+        feature_name = all_names[f_id]
+        d[f"{feature_name}_shap"] = curr_shap
+    df_features = pd.DataFrame(d)
+    df_features.to_excel(f"{st}/shap.xlsx", index=False)
 
 shap.summary_plot(
     shap_values=shap_values,
@@ -259,8 +239,9 @@ for m_id in mistakes_ids:
         )
         fig = plt.gcf()
         fig.set_size_inches(18, 10, forward=True)
-        Path(f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}").mkdir(parents=True,
-                                                                                                        exist_ok=True)
+        Path(f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}").mkdir(
+            parents=True,
+            exist_ok=True)
         fig.savefig(
             f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}/waterfall_{st}.pdf")
         fig.savefig(
@@ -296,6 +277,7 @@ conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
 
 
 def save_figure(fig, fn, width=800, height=600, scale=2):
+    Path(f"figures").mkdir(parents=True, exist_ok=True)
     fig.write_image(f"figures/{fn}.png")
     fig.write_image(f"figures/{fn}.pdf")
 
@@ -321,7 +303,8 @@ fig['data'][0]['showscale'] = True
 save_figure(fig, "confusion_matrix_val_cat")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
-metrics_df.to_excel("figures/metrics_cat.xlsx", index=True)
+metrics_df.to_excel(f"figures/metrics_cat.xlsx",
+                    index=True)
 
 ########################################
 
@@ -353,7 +336,7 @@ model_params = {'loss_function': 'Logloss',
 model = CatBoost(params=model_params)
 model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
 model.set_feature_names(all_names)
-# model.save_model(f"epoch_{model.best_iteration_}.model")
+model.save_model(f"epoch_{model.best_iteration_}_cat_bin.model")
 
 train_pred = model.predict(train_features, prediction_type="Class")
 val_pred = model.predict(val_features, prediction_type="Class")
@@ -439,7 +422,7 @@ bst = xgb.train(
     num_boost_round=num_boost_round,
     early_stopping_rounds=early_stopping_rounds
 )
-# bst.save_model(f"epoch_{bst.best_iteration}.model")
+bst.save_model(f"epoch_{bst.best_iteration}_xgb.model")
 
 train_pred = bst.predict(dmat_train)
 val_pred = bst.predict(dmat_val)
@@ -525,7 +508,7 @@ bst = xgb.train(
     num_boost_round=num_boost_round,
     early_stopping_rounds=early_stopping_rounds
 )
-# bst.save_model(f"epoch_{bst.best_iteration}.model")
+bst.save_model(f"epoch_{bst.best_iteration}_xgb_bin.model")
 
 train_pred = bst.predict(dmat_train)
 val_pred = bst.predict(dmat_val)

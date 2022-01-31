@@ -10,3 +10,5 @@ catboost_info/
 *.model
 
 *.xlsx
+
+__pycache__/
