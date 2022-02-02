@@ -6,7 +6,7 @@ from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, confusion_m
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from pathlib import Path
-from plot_evolution import plot_model_evolution
+from plot_evolution import plot_catboost_evolution
 
 
 df = pd.read_excel('dataframes/dataframe.xlsx')
@@ -106,4 +106,4 @@ metrics_df = pd.DataFrame.from_dict(metrics_dict)
 metrics_df.to_excel(f"figures/lr({model_params['learning_rate']})_it({model_params['iterations']})/metrics_cat.xlsx",
                     index=True)
 
-plot_model_evolution(f"figures/lr({model_params['learning_rate']})_it({model_params['iterations']})/")
+plot_catboost_evolution(f"figures/lr({model_params['learning_rate']})_it({model_params['iterations']})/")

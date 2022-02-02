@@ -85,7 +85,7 @@ def save_figure(fig, fn, path):
     fig.write_image(f"{path}/{fn}.pdf")
 
 
-def plot_model_evolution(figure_path):
+def plot_catboost_evolution(figure_path):
 
     data_path = 'D:/EEG/'
     x = []
@@ -118,4 +118,32 @@ def plot_model_evolution(figure_path):
             pad=0
         )
     )
+    fig.update_yaxes(autorange=False)
+    fig.update_layout(yaxis_range=[0, max(y_learn + y_test) + 0.1])
+    save_figure(fig, "evolution", figure_path)
+
+
+def plot_xgboost_evolution(progress, figure_path):
+
+    x = list(range(0, len(progress['train']['mlogloss'])))
+    y_learn = progress['train']['mlogloss']
+    y_test = progress['val']['mlogloss']
+
+    fig = go.Figure()
+    add_scatter_trace(fig, x, y_learn, "Train")
+    add_scatter_trace(fig, x, y_test, "Test")
+    add_layout(fig, "Epoch", 'Error', "")
+    fig.update_layout({'colorway': ['blue', 'red']})
+    fig.update_layout(legend_font_size=20)
+    fig.update_layout(
+        margin=go.layout.Margin(
+            l=120,
+            r=20,
+            b=75,
+            t=45,
+            pad=0
+        )
+    )
+    fig.update_yaxes(autorange=False)
+    fig.update_layout(yaxis_range=[0, max(y_learn + y_test) + 0.1])
     save_figure(fig, "evolution", figure_path)
