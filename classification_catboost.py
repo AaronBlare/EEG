@@ -12,9 +12,9 @@ from plot_evolution import plot_model_evolution
 df = pd.read_excel('dataframes/dataframe.xlsx')
 all_classes = pd.factorize(list(df['class']))[0]
 all_features = df.iloc[:, :-1].to_numpy()
-all_names = list(df.columns.values)[:-1]
+features_names = list(df.columns.values)[:-1]
 
-ids_train, ids_val = train_test_split(np.arange(len(all_classes)), test_size=0.2, stratify=all_classes, random_state=5)
+ids_train, ids_val = train_test_split(np.arange(len(all_classes)), test_size=0.2, stratify=all_classes, random_state=7)
 
 ids_train_test = []
 for i in range(0, len(all_classes)):
@@ -48,20 +48,16 @@ model_params = {'classes_count': 4,
 
 model = CatBoost(params=model_params)
 model.fit(train_features, train_classes, eval_set=(val_features, val_classes))
-model.set_feature_names(all_names)
+model.set_feature_names(features_names)
 model.save_model(f"models/epoch_{model.best_iteration_}_cat.model")
 
 train_pred = model.predict(train_features, prediction_type="Class")
 val_pred = model.predict(val_features, prediction_type="Class")
-val_pred_probs = model.predict(val_features, prediction_type="Probability")
 
 y_train_real = train_classes
 y_train_pred = [item[0] for item in train_pred]
 y_val_real = val_classes
 y_val_pred = [item[0] for item in val_pred]
-
-is_correct_pred = (np.array(y_val_real) == np.array(y_val_pred))
-mistakes_ids = np.where(is_correct_pred == False)[0]
 
 metrics_dict = {'train': [], 'val': []}
 
