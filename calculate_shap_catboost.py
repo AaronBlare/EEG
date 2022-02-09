@@ -1,12 +1,10 @@
-import copy
 import numpy as np
 import pandas as pd
-from catboost import CatBoostClassifier, Pool
-import plotly.figure_factory as ff
+from catboost import CatBoostClassifier
 import shap
 import matplotlib.pyplot as plt
 from pathlib import Path
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, confusion_matrix
+from sklearn.metrics import f1_score, accuracy_score
 
 
 shap.initjs()

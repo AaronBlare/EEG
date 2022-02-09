@@ -2,9 +2,8 @@ import xgboost as xgb
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, confusion_matrix
+from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
 from pathlib import Path
 from plot_evolution import plot_xgboost_evolution
 
