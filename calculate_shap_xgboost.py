@@ -2,10 +2,10 @@ import copy
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-import plotly.figure_factory as ff
 import shap
 import matplotlib.pyplot as plt
 from pathlib import Path
+
 
 shap.initjs()
 
