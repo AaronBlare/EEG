@@ -13,26 +13,26 @@ data_info = mne.create_info(ch_names=mat_data['res'][0]['right_real']['label'],
                             ch_types='eeg')
 
 
-def calculate_num_epochs(data, move_type):
-    num_epochs = 0
-    min_epoch_len = data['res'][0][move_type]['trial'][0].shape[1]
+def calculate_num_trials(data, move_type):
+    num_trials = 0
+    min_trial_len = data['res'][0][move_type]['trial'][0].shape[1]
     for subject_id in range(0, len(data['res'])):
         if len(data['res'][subject_id]) > 0:
-            num_epochs += len(data['res'][0][move_type]['trial'])
+            num_trials += len(data['res'][0][move_type]['trial'])
             for epoch_id in range(0, len(data['res'][0][move_type]['trial'])):
-                if data['res'][subject_id][move_type]['trial'][epoch_id].shape[1] < min_epoch_len:
-                    min_epoch_len = data['res'][subject_id][move_type]['trial'][epoch_id].shape[1]
-    return num_epochs, min_epoch_len
+                if data['res'][subject_id][move_type]['trial'][epoch_id].shape[1] < min_trial_len:
+                    min_trial_len = data['res'][subject_id][move_type]['trial'][epoch_id].shape[1]
+    return num_trials, min_trial_len
 
 
-num_epochs_right_real, min_epoch_len_right_real = calculate_num_epochs(mat_data, 'right_real')
-num_epochs_right_quasi, min_epoch_len_right_quasi = calculate_num_epochs(mat_data, 'right_quasi')
-num_epochs_right_im1, min_epoch_len_right_im1 = calculate_num_epochs(mat_data, 'right_im1')
-num_epochs_right_im2, min_epoch_len_right_im2 = calculate_num_epochs(mat_data, 'right_im2')
+num_trials_right_real, min_trial_len_right_real = calculate_num_trials(mat_data, 'right_real')
+num_trials_right_quasi, min_trial_len_right_quasi = calculate_num_trials(mat_data, 'right_quasi')
+num_trials_right_im1, min_trial_len_right_im1 = calculate_num_trials(mat_data, 'right_im1')
+num_trials_right_im2, min_trial_len_right_im2 = calculate_num_trials(mat_data, 'right_im2')
 
-num_epochs = min(num_epochs_right_real, num_epochs_right_quasi, num_epochs_right_im1, num_epochs_right_im2)
-min_epoch_len = min(min_epoch_len_right_real, min_epoch_len_right_quasi,
-                    min_epoch_len_right_im1, min_epoch_len_right_im2)
+num_trials = min(num_trials_right_real, num_trials_right_quasi, num_trials_right_im1, num_trials_right_im2)
+min_trial_len = min(min_trial_len_right_real, min_trial_len_right_quasi,
+                    min_trial_len_right_im1, min_trial_len_right_im2)
 
 time_right_real = mat_data['res'][0]['right_real']['trial'][0].shape[0]
 time_right_quasi = mat_data['res'][0]['right_quasi']['trial'][0].shape[0]
@@ -40,26 +40,26 @@ time_right_im1 = mat_data['res'][0]['right_im1']['trial'][0].shape[0]
 time_right_im2 = mat_data['res'][0]['right_im2']['trial'][0].shape[0]
 min_time = min(time_right_real, time_right_quasi, time_right_im1, time_right_im2)
 
-data_right_real = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
-data_right_quasi = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
-data_right_im1 = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
-data_right_im2 = np.empty(shape=(num_epochs, min_time, min_epoch_len - 5000))
+data_right_real = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
+data_right_quasi = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
+data_right_im1 = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
+data_right_im2 = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
 
 
-def fill_data(data, raw_data, move_type, epoch_len):
-    curr_epoch = 0
+def fill_data(data, raw_data, move_type, trial_len):
+    curr_trial = 0
     for subject_id in range(0, len(raw_data['res'])):
         if len(raw_data['res'][subject_id]) > 0:
-            for epoch_id in range(0, len(raw_data['res'][0][move_type]['trial'])):
-                data[curr_epoch, :, :] = raw_data['res'][subject_id][move_type]['trial'][epoch_id][:, 5000:epoch_len]
-                curr_epoch += 1
+            for trial_id in range(0, len(raw_data['res'][0][move_type]['trial'])):
+                data[curr_trial, :, :] = raw_data['res'][subject_id][move_type]['trial'][trial_id][:, 5000:trial_len]
+                curr_trial += 1
     return data
 
 
-data_right_real = fill_data(data_right_real, mat_data, 'right_real', min_epoch_len)
-data_right_quasi = fill_data(data_right_quasi, mat_data, 'right_quasi', min_epoch_len)
-data_right_im1 = fill_data(data_right_im1, mat_data, 'right_im1', min_epoch_len)
-data_right_im2 = fill_data(data_right_im2, mat_data, 'right_im2', min_epoch_len)
+data_right_real = fill_data(data_right_real, mat_data, 'right_real', min_trial_len)
+data_right_quasi = fill_data(data_right_quasi, mat_data, 'right_quasi', min_trial_len)
+data_right_im1 = fill_data(data_right_im1, mat_data, 'right_im1', min_trial_len)
+data_right_im2 = fill_data(data_right_im2, mat_data, 'right_im2', min_trial_len)
 
 all_data = np.concatenate((data_right_real, data_right_quasi, data_right_im1, data_right_im2), axis=0)
 
