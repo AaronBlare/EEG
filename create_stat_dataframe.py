@@ -1,6 +1,7 @@
 import numpy as np
 import mne
 from mne.externals.pymatreader import read_mat
+from mne.time_frequency import tfr_multitaper
 import pandas as pd
 
 
@@ -40,10 +41,10 @@ time_right_im1 = mat_data['res'][0]['right_im1']['trial'][0].shape[0]
 time_right_im2 = mat_data['res'][0]['right_im2']['trial'][0].shape[0]
 min_time = min(time_right_real, time_right_quasi, time_right_im1, time_right_im2)
 
-data_right_real = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
-data_right_quasi = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
-data_right_im1 = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
-data_right_im2 = np.empty(shape=(num_trials, min_time, min_trial_len - 5000))
+data_right_real = np.empty(shape=(num_trials, min_time, min_trial_len))
+data_right_quasi = np.empty(shape=(num_trials, min_time, min_trial_len))
+data_right_im1 = np.empty(shape=(num_trials, min_time, min_trial_len))
+data_right_im2 = np.empty(shape=(num_trials, min_time, min_trial_len))
 
 
 def fill_data(data, raw_data, move_type, trial_len):
@@ -51,7 +52,7 @@ def fill_data(data, raw_data, move_type, trial_len):
     for subject_id in range(0, len(raw_data['res'])):
         if len(raw_data['res'][subject_id]) > 0:
             for trial_id in range(0, len(raw_data['res'][0][move_type]['trial'])):
-                data[curr_trial, :, :] = raw_data['res'][subject_id][move_type]['trial'][trial_id][:, 5000:trial_len]
+                data[curr_trial, :, :] = raw_data['res'][subject_id][move_type]['trial'][trial_id][:, :trial_len]
                 curr_trial += 1
     return data
 
@@ -70,11 +71,13 @@ def get_band_features(data, bands):
     band_features = np.empty(shape=(data.shape[0], data.shape[1] * 5 * 5))
     band_features_names = list()
     band_id = 0
+    epochs = mne.EpochsArray(data=data[:, :, :5000].copy(), info=data_info)
+    tfr = tfr_multitaper(epochs, freqs=np.arange(2, 36), n_cycles=np.arange(2, 36), use_fft=True, return_itc=False,
+                         average=False, decim=2)
     for band, f_min, f_max in bands:
         filtered_epochs = mne.EpochsArray(data=data.copy(), info=data_info)
+        filtered_epochs.filter(1, 50, n_jobs=1, l_trans_bandwidth=1, h_trans_bandwidth=1)
         filtered_epochs.filter(f_min, f_max, n_jobs=1, l_trans_bandwidth=1, h_trans_bandwidth=1)
-        filtered_epochs.subtract_evoked()
-        filtered_epochs.apply_hilbert(envelope=True)
         filtered_data = filtered_epochs.get_data()
         for lead_id in range(0, filtered_data.shape[1]):
             curr_lead = filtered_epochs.ch_names[lead_id]

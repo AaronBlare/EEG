@@ -54,7 +54,7 @@ for st_id, st in enumerate(classes_names):
         feature_name = features_names[f_id]
         d[f"{feature_name}_shap"] = curr_shap
     df_features = pd.DataFrame(d)
-    Path(f"shap/{st}").mkdir(parents=True, exist_ok=True)
+    Path(f"files/shap/{st}").mkdir(parents=True, exist_ok=True)
     df_features.to_excel(f"shap/{st}/shap.xlsx", index=False)
 
 shap.summary_plot(
@@ -127,7 +127,7 @@ for m_id in mistakes_ids:
         )
         fig = plt.gcf()
         fig.set_size_inches(18, 10, forward=True)
-        Path(f"figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}").mkdir(
+        Path(f"files/figures/errors/real({classes_names[subj_cl]})_pred({classes_names[subj_pred_cl]})/{m_id}").mkdir(
             parents=True,
             exist_ok=True)
         fig.savefig(
@@ -153,8 +153,8 @@ for subj_id in range(val_features.shape[0]):
             )
             fig = plt.gcf()
             fig.set_size_inches(18, 10, forward=True)
-            Path(f"figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}").mkdir(parents=True,
-                                                                                                 exist_ok=True)
+            Path(f"files/figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}").mkdir(parents=True,
+                                                                                                       exist_ok=True)
             fig.savefig(f"figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}/waterfall_{st}.pdf")
             fig.savefig(f"figures/{classes_names[subj_cl]}/{passed_examples[subj_cl]}_{subj_id}/waterfall_{st}.png")
             plt.close()
