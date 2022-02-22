@@ -45,11 +45,10 @@ def get_band_features(data, bands):
     band_features = np.empty(shape=(data.shape[0], data.shape[1] * 5 * 5))
     band_features_names = list()
     band_id = 0
+    feature_id = 0
     for band, f_min, f_max in bands:
         filtered_epochs = mne.EpochsArray(data=data.copy(), info=data_info)
         filtered_epochs.filter(f_min, f_max, n_jobs=1, l_trans_bandwidth=1, h_trans_bandwidth=1)
-        filtered_epochs.subtract_evoked()
-        filtered_epochs.apply_hilbert(envelope=True)
         filtered_data = filtered_epochs.get_data()
         for lead_id in range(0, filtered_data.shape[1]):
             curr_lead = filtered_epochs.ch_names[lead_id]
@@ -59,11 +58,12 @@ def get_band_features(data, bands):
             band_features_names.append('_'.join([band, 'max', curr_lead]))
             band_features_names.append('_'.join([band, 'min', curr_lead]))
             for epoch_id in range(0, filtered_data.shape[0]):
-                band_features[epoch_id, (band_id + 1) * 4 * lead_id] = np.mean(filtered_data[epoch_id, lead_id, :])
-                band_features[epoch_id, (band_id + 1) * 4 * lead_id] = np.median(filtered_data[epoch_id, lead_id, :])
-                band_features[epoch_id, (band_id + 1) * 4 * lead_id + 1] = np.std(filtered_data[epoch_id, lead_id, :])
-                band_features[epoch_id, (band_id + 1) * 4 * lead_id + 2] = np.max(filtered_data[epoch_id, lead_id, :])
-                band_features[epoch_id, (band_id + 1) * 4 * lead_id + 3] = np.min(filtered_data[epoch_id, lead_id, :])
+                band_features[epoch_id, feature_id] = np.mean(filtered_data[epoch_id, lead_id, :])
+                band_features[epoch_id, feature_id + 1] = np.median(filtered_data[epoch_id, lead_id, :])
+                band_features[epoch_id, feature_id + 2] = np.std(filtered_data[epoch_id, lead_id, :])
+                band_features[epoch_id, feature_id + 3] = np.max(filtered_data[epoch_id, lead_id, :])
+                band_features[epoch_id, feature_id + 4] = np.min(filtered_data[epoch_id, lead_id, :])
+            feature_id += 5
         del filtered_epochs
         band_id += 1
     return band_features, band_features_names
