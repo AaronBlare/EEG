@@ -69,11 +69,12 @@ def get_band_features(data, bands):
     return band_features, band_features_names
 
 
-calculate_old_background = False
-calculate_1st_background = False
-calculate_all_background = False
-calculate_all_background_by_class = False
-calculate_all_background_by_class_merged = False
+calculate_old_background = True
+calculate_1st_background = True
+calculate_all_background = True
+calculate_all_background_by_class = True
+calculate_all_background_by_class_merged = True
+calculate_mann_whitney = True
 
 if calculate_old_background:
 
@@ -175,74 +176,75 @@ if calculate_1st_background:
     df = pd.DataFrame.from_dict(kruskal_pval_left_right_background)
     df.to_excel("files/kruskal_left_right_background.xlsx", header=True, index=False)
 
-mat_data = read_mat(data_path + new_data_files[0])
-data_info = mne.create_info(ch_names=mat_data['subs_ica_bgr'][0]['right_real']['label'],
-                            sfreq=mat_data['subs_ica_bgr'][0]['right_real']['fsample'],
-                            ch_types='eeg')
+if calculate_mann_whitney:
+    mat_data = read_mat(data_path + new_data_files[0])
+    data_info = mne.create_info(ch_names=mat_data['subs_ica_bgr'][0]['right_real']['label'],
+                                sfreq=mat_data['subs_ica_bgr'][0]['right_real']['fsample'],
+                                ch_types='eeg')
 
-num_trials_right_im1, min_trial_len_right_im1 = calculate_num_trials(mat_data, 'right_im1')
-num_trials_right_im2, min_trial_len_right_im2 = calculate_num_trials(mat_data, 'right_im2')
+    num_trials_right_im1, min_trial_len_right_im1 = calculate_num_trials(mat_data, 'right_im1')
+    num_trials_right_im2, min_trial_len_right_im2 = calculate_num_trials(mat_data, 'right_im2')
 
-num_trials_left_im1, min_trial_len_left_im1 = calculate_num_trials(mat_data, 'left_im1')
-num_trials_left_im2, min_trial_len_left_im2 = calculate_num_trials(mat_data, 'left_im2')
+    num_trials_left_im1, min_trial_len_left_im1 = calculate_num_trials(mat_data, 'left_im1')
+    num_trials_left_im2, min_trial_len_left_im2 = calculate_num_trials(mat_data, 'left_im2')
 
-num_trials_right = min(num_trials_right_im1, num_trials_right_im2)
-min_trial_len_right = min(min_trial_len_right_im1, min_trial_len_right_im2)
+    num_trials_right = min(num_trials_right_im1, num_trials_right_im2)
+    min_trial_len_right = min(min_trial_len_right_im1, min_trial_len_right_im2)
 
-num_trials_left = min(num_trials_left_im1, num_trials_left_im2)
-min_trial_len_left = min(min_trial_len_left_im1, min_trial_len_left_im2)
+    num_trials_left = min(num_trials_left_im1, num_trials_left_im2)
+    min_trial_len_left = min(min_trial_len_left_im1, min_trial_len_left_im2)
 
-num_electrodes = mat_data['subs_ica_bgr'][0]['right_real']['trial'].shape[0]
+    num_electrodes = mat_data['subs_ica_bgr'][0]['right_real']['trial'].shape[0]
 
-data_right_im1 = np.empty(shape=(num_trials_right, num_electrodes, min_trial_len_right))
-data_right_im2 = np.empty(shape=(num_trials_right, num_electrodes, min_trial_len_right))
+    data_right_im1 = np.empty(shape=(num_trials_right, num_electrodes, min_trial_len_right))
+    data_right_im2 = np.empty(shape=(num_trials_right, num_electrodes, min_trial_len_right))
 
-data_left_im1 = np.empty(shape=(num_trials_left, num_electrodes, min_trial_len_left))
-data_left_im2 = np.empty(shape=(num_trials_left, num_electrodes, min_trial_len_left))
+    data_left_im1 = np.empty(shape=(num_trials_left, num_electrodes, min_trial_len_left))
+    data_left_im2 = np.empty(shape=(num_trials_left, num_electrodes, min_trial_len_left))
 
-data_right_im1 = fill_data(data_right_im1, mat_data, 'right_im1', min_trial_len_right)
-data_right_im2 = fill_data(data_right_im2, mat_data, 'right_im2', min_trial_len_right)
+    data_right_im1 = fill_data(data_right_im1, mat_data, 'right_im1', min_trial_len_right)
+    data_right_im2 = fill_data(data_right_im2, mat_data, 'right_im2', min_trial_len_right)
 
-data_left_im1 = fill_data(data_left_im1, mat_data, 'right_im1', min_trial_len_left)
-data_left_im2 = fill_data(data_left_im2, mat_data, 'right_im2', min_trial_len_left)
+    data_left_im1 = fill_data(data_left_im1, mat_data, 'right_im1', min_trial_len_left)
+    data_left_im2 = fill_data(data_left_im2, mat_data, 'right_im2', min_trial_len_left)
 
-freq_bands = [('Delta', 0, 4), ('Theta', 4, 8), ('Alpha', 8, 12), ('Beta', 12, 30), ('Gamma', 30, 45)]
+    freq_bands = [('Delta', 0, 4), ('Theta', 4, 8), ('Alpha', 8, 12), ('Beta', 12, 30), ('Gamma', 30, 45)]
 
-band_features_right_im1, band_features_names_right_im1 = get_band_features(data_right_im1, freq_bands)
-band_features_right_im2, band_features_names_right_im2 = get_band_features(data_right_im2, freq_bands)
+    band_features_right_im1, band_features_names_right_im1 = get_band_features(data_right_im1, freq_bands)
+    band_features_right_im2, band_features_names_right_im2 = get_band_features(data_right_im2, freq_bands)
 
-band_features_left_im1, band_features_names_left_im1 = get_band_features(data_left_im1, freq_bands)
-band_features_left_im2, band_features_names_left_im2 = get_band_features(data_left_im2, freq_bands)
+    band_features_left_im1, band_features_names_left_im1 = get_band_features(data_left_im1, freq_bands)
+    band_features_left_im2, band_features_names_left_im2 = get_band_features(data_left_im2, freq_bands)
 
-mannwhitney_pval_right_im1_im2 = {'feature': [], 'pval': [], 'pval_bh': []}
-for feature_id in range(0, len(band_features_names_right_im1)):
-    if len(set(band_features_right_im1[:, feature_id] + band_features_right_im2[:, feature_id])) > 1:
-        res = mannwhitneyu(band_features_right_im1[:, feature_id], band_features_right_im2[:, feature_id])
-        pval = res.pvalue
-        if not np.isnan(pval):
-            mannwhitney_pval_right_im1_im2['pval'].append(pval)
-            mannwhitney_pval_right_im1_im2['feature'].append(band_features_names_right_im1[feature_id])
+    mannwhitney_pval_right_im1_im2 = {'feature': [], 'pval': [], 'pval_bh': []}
+    for feature_id in range(0, len(band_features_names_right_im1)):
+        if len(set(band_features_right_im1[:, feature_id] + band_features_right_im2[:, feature_id])) > 1:
+            res = mannwhitneyu(band_features_right_im1[:, feature_id], band_features_right_im2[:, feature_id])
+            pval = res.pvalue
+            if not np.isnan(pval):
+                mannwhitney_pval_right_im1_im2['pval'].append(pval)
+                mannwhitney_pval_right_im1_im2['feature'].append(band_features_names_right_im1[feature_id])
 
-reject, pval_bh, alphacSidak, alphacBonf = multipletests(mannwhitney_pval_right_im1_im2['pval'], method='fdr_bh')
-mannwhitney_pval_right_im1_im2['pval_bh'] = pval_bh
+    reject, pval_bh, alphacSidak, alphacBonf = multipletests(mannwhitney_pval_right_im1_im2['pval'], method='fdr_bh')
+    mannwhitney_pval_right_im1_im2['pval_bh'] = pval_bh
 
-df = pd.DataFrame.from_dict(mannwhitney_pval_right_im1_im2)
-df.to_excel("files/mannwhitney_right_im1_im2.xlsx", header=True, index=False)
+    df = pd.DataFrame.from_dict(mannwhitney_pval_right_im1_im2)
+    df.to_excel("files/mannwhitney_right_im1_im2.xlsx", header=True, index=False)
 
-mannwhitney_pval_left_im1_im2 = {'feature': [], 'pval': [], 'pval_bh': []}
-for feature_id in range(0, len(band_features_names_left_im1)):
-    if len(set(band_features_left_im1[:, feature_id] + band_features_left_im2[:, feature_id])) > 1:
-        res = mannwhitneyu(band_features_left_im1[:, feature_id], band_features_left_im2[:, feature_id])
-        pval = res.pvalue
-        if not np.isnan(pval):
-            mannwhitney_pval_left_im1_im2['pval'].append(pval)
-            mannwhitney_pval_left_im1_im2['feature'].append(band_features_names_left_im1[feature_id])
+    mannwhitney_pval_left_im1_im2 = {'feature': [], 'pval': [], 'pval_bh': []}
+    for feature_id in range(0, len(band_features_names_left_im1)):
+        if len(set(band_features_left_im1[:, feature_id] + band_features_left_im2[:, feature_id])) > 1:
+            res = mannwhitneyu(band_features_left_im1[:, feature_id], band_features_left_im2[:, feature_id])
+            pval = res.pvalue
+            if not np.isnan(pval):
+                mannwhitney_pval_left_im1_im2['pval'].append(pval)
+                mannwhitney_pval_left_im1_im2['feature'].append(band_features_names_left_im1[feature_id])
 
-reject, pval_bh, alphacSidak, alphacBonf = multipletests(mannwhitney_pval_left_im1_im2['pval'], method='fdr_bh')
-mannwhitney_pval_left_im1_im2['pval_bh'] = pval_bh
+    reject, pval_bh, alphacSidak, alphacBonf = multipletests(mannwhitney_pval_left_im1_im2['pval'], method='fdr_bh')
+    mannwhitney_pval_left_im1_im2['pval_bh'] = pval_bh
 
-df = pd.DataFrame.from_dict(mannwhitney_pval_left_im1_im2)
-df.to_excel("files/mannwhitney_left_im1_im2.xlsx", header=True, index=False)
+    df = pd.DataFrame.from_dict(mannwhitney_pval_left_im1_im2)
+    df.to_excel("files/mannwhitney_left_im1_im2.xlsx", header=True, index=False)
 
 if calculate_all_background:
 

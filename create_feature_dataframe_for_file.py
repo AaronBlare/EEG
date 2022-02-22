@@ -78,16 +78,16 @@ data = {movement_type: np.empty(shape=(num_trials, num_electrodes, min_trial_len
 
 
 def fill_data(data, raw_data, movement_types, trial_len):
-    if 'subs_ica' in raw_data:
-        file_flag = 'subs_ica'
-    elif 'subs_ica_bgr' in raw_data:
-        file_flag = 'subs_ica_bgr'
-    else:
-        file_flag = 'res'
     for movement_type in movement_types:
         curr_trial = 0
         for file_id in range(0, len(data_files)):
             curr_file = raw_data[file_id]
+            if 'subs_ica' in curr_file:
+                file_flag = 'subs_ica'
+            elif 'subs_ica_bgr' in curr_file:
+                file_flag = 'subs_ica_bgr'
+            else:
+                file_flag = 'res'
             for subject_id in range(0, len(curr_file[file_flag])):
                 if len(curr_file[file_flag][subject_id]) > 0:
                     for trial_id in range(0, len(curr_file[file_flag][subject_id][movement_type]['trial'])):
