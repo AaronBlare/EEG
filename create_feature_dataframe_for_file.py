@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 import mne
 from mne.externals.pymatreader import read_mat
+from mne.time_frequency import psd_welch
 
 data_path = 'E:/YandexDisk/EEG/Data/'
 data_files = ['1st_Day.mat']
@@ -40,15 +41,15 @@ def calculate_num_trials(data, move_type):
     min_trial_len = data[file_flag][0][move_type]['trial'][0].shape[1]
     for subject_id in range(0, len(data[file_flag])):
         if len(data[file_flag][subject_id]) > 0:
-            num_trials += len(data[file_flag][0][move_type]['trial'])
-            for epoch_id in range(0, len(data[file_flag][subject_id][move_type]['trial'])):
-                if data[file_flag][subject_id][move_type]['trial'][epoch_id].shape[1] < min_trial_len:
-                    min_trial_len = data[file_flag][subject_id][move_type]['trial'][epoch_id].shape[1]
+            num_trials += len(data[file_flag][subject_id][move_type]['trial'])
+            for trial_id in range(0, len(data[file_flag][subject_id][move_type]['trial'])):
+                if data[file_flag][subject_id][move_type]['trial'][trial_id].shape[1] < min_trial_len:
+                    min_trial_len = data[file_flag][subject_id][move_type]['trial'][trial_id].shape[1]
     return num_trials, min_trial_len
 
 
 movement_types = ['right_real', 'right_quasi', 'right_im1', 'right_im2']
-num_trials_by_movement = []
+num_trials_by_movement = {movement_type: 0 for movement_type in movement_types}
 min_trial_len_by_movement = []
 num_electrodes_by_movement = []
 
@@ -68,13 +69,13 @@ for movement_type in movement_types:
         num_electrodes_by_movement.append(curr_num_electrodes)
         movement_num_trials += curr_num_trials
         del curr_data
-    num_trials_by_movement.append(movement_num_trials)
+    num_trials_by_movement[movement_type] = movement_num_trials
 
-num_trials = min(num_trials_by_movement)
 min_trial_len = min(min_trial_len_by_movement)
 num_electrodes = min(num_electrodes_by_movement)
 
-data = {movement_type: np.empty(shape=(num_trials, num_electrodes, min_trial_len)) for movement_type in movement_types}
+data = {movement_type: np.empty(shape=(num_trials_by_movement[movement_type], num_electrodes, min_trial_len)) for
+        movement_type in movement_types}
 
 
 def fill_data(data, raw_data, movement_types, trial_len):
@@ -104,17 +105,30 @@ freq_bands = [('Theta', 4, 8), ('Alpha', 8, 12), ('Beta', 12, 30), ('Gamma', 30,
 
 
 def get_band_features(data, movement_types, bands):
+    num_features_types = 6
     band_features = {movement_type: np.empty(
-        shape=(data[movement_type].shape[0], data[movement_type].shape[1] * len(bands) * 5))
+        shape=(data[movement_type].shape[0], data[movement_type].shape[1] * len(bands) * num_features_types))
         for movement_type in movement_types}
     band_features_names = list()
     for movement_type_id in range(0, len(movement_types)):
         movement_type = movement_types[movement_type_id]
         filtered_epochs = mne.EpochsArray(data=data[movement_type].copy(), info=data_info)
         filtered_epochs.filter(1, 50, n_jobs=1, l_trans_bandwidth=1, h_trans_bandwidth=1)
-        band_id = 0
+        psd, freqs = psd_welch(filtered_epochs, fmin=1, fmax=45, tmin=0, tmax=data[movement_types[0]].shape[2])
+        band_freqs_ids = [[]]
+        curr_band_id = 0
+        for freq_id in range(0, freqs.shape[0]):
+            freq = freqs[freq_id]
+            if freq > bands[curr_band_id][2]:
+                band_freqs_ids.append([])
+                curr_band_id += 1
+            if bands[curr_band_id][1] <= freq <= bands[curr_band_id][2]:
+                band_freqs_ids[curr_band_id].append(freq_id)
         feature_id = 0
-        for band, f_min, f_max in bands:
+        for band_id in range(0, len(bands)):
+            band = bands[band_id][0]
+            f_min = bands[band_id][1]
+            f_max = bands[band_id][2]
             filtered_epochs.filter(f_min, f_max, n_jobs=1, l_trans_bandwidth=1, h_trans_bandwidth=1)
             filtered_data = filtered_epochs.get_data()
             for electrode_id in range(0, filtered_data.shape[1]):
@@ -125,6 +139,7 @@ def get_band_features(data, movement_types, bands):
                     band_features_names.append('_'.join([band, 'std', electrode_name]))
                     band_features_names.append('_'.join([band, 'max', electrode_name]))
                     band_features_names.append('_'.join([band, 'min', electrode_name]))
+                    band_features_names.append('_'.join([band, 'psd', electrode_name]))
                 for trial_id in range(0, filtered_data.shape[0]):
                     band_features[movement_type][trial_id, feature_id] = np.mean(
                         filtered_data[trial_id, electrode_id, :])
@@ -136,8 +151,9 @@ def get_band_features(data, movement_types, bands):
                         filtered_data[trial_id, electrode_id, :])
                     band_features[movement_type][trial_id, feature_id + 4] = np.min(
                         filtered_data[trial_id, electrode_id, :])
-                feature_id += 5
-            band_id += 1
+                    band_features[movement_type][trial_id, feature_id + 5] = np.mean(
+                        psd[trial_id, electrode_id, band_freqs_ids[band_id]])
+                feature_id += num_features_types
         del filtered_epochs
     return band_features, band_features_names
 
