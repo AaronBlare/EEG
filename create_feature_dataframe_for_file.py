@@ -6,7 +6,7 @@ from mne.externals.pymatreader import read_mat
 from mne.time_frequency import psd_welch
 
 data_path = 'E:/YandexDisk/EEG/Data/'
-data_files = ['2nd_Day_TMS.mat', '2nd_Day_TMS_5new_subj.mat']
+data_files = ['1st_Day_background_recordings.mat']
 
 dataframe_path = 'E:/YandexDisk/EEG/Dataframes/'
 
@@ -18,15 +18,6 @@ for file_id in range(0, len(data_files)):
     mat_data.append(curr_mat_data)
     if file_id == 0:
         if background:
-            if 'subs_ica' in curr_mat_data:
-                data_info = mne.create_info(ch_names=curr_mat_data['subs_ica'][0]['right_real']['label'],
-                                            sfreq=curr_mat_data['subs_ica'][0]['right_real']['fsample'],
-                                            ch_types='eeg')
-            else:
-                data_info = mne.create_info(ch_names=curr_mat_data['res'][0]['right_real']['label'],
-                                            sfreq=curr_mat_data['res'][0]['right_real']['fsample'],
-                                            ch_types='eeg')
-        else:
             if 'subs_ica_bgr' in curr_mat_data:
                 data_info = mne.create_info(ch_names=curr_mat_data['subs_ica_bgr'][0]['right_real']['label'],
                                             sfreq=curr_mat_data['subs_ica_bgr'][0]['right_real']['fsample'],
@@ -34,6 +25,15 @@ for file_id in range(0, len(data_files)):
             else:
                 data_info = mne.create_info(ch_names=curr_mat_data['res_bgr'][0]['right_real']['label'],
                                             sfreq=curr_mat_data['res_bgr'][0]['right_real']['fsample'],
+                                            ch_types='eeg')
+        else:
+            if 'subs_ica' in curr_mat_data:
+                data_info = mne.create_info(ch_names=curr_mat_data['subs_ica'][0]['right_real']['label'],
+                                            sfreq=curr_mat_data['subs_ica'][0]['right_real']['fsample'],
+                                            ch_types='eeg')
+            else:
+                data_info = mne.create_info(ch_names=curr_mat_data['res'][0]['right_real']['label'],
+                                            sfreq=curr_mat_data['res'][0]['right_real']['fsample'],
                                             ch_types='eeg')
     del curr_mat_data
 
