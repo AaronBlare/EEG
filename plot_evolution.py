@@ -125,9 +125,14 @@ def plot_catboost_evolution(figure_path):
 
 def plot_xgboost_evolution(progress, figure_path):
 
-    x = list(range(0, len(progress['train']['mlogloss'])))
-    y_learn = progress['train']['mlogloss']
-    y_test = progress['val']['mlogloss']
+    if 'logloss' in progress['train']:
+        flag = 'logloss'
+    else:
+        flag = 'mlogloss'
+
+    x = list(range(0, len(progress['train'][flag])))
+    y_learn = progress['train'][flag]
+    y_test = progress['val'][flag]
 
     fig = go.Figure()
     add_scatter_trace(fig, x, y_learn, "Train")

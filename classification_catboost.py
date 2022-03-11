@@ -43,7 +43,7 @@ for i in range(0, len(train_test_classes)):
         print('Train test split error')
 
 ids_train_test_df = pd.DataFrame(ids_train_test)
-ids_train_test_df.to_excel(f"{data_path}train_test_split_{suffix}.xlsx", header=['status'], index=False)
+ids_train_test_df.to_excel(f"{data_path}train_test_split_{suffix}_catboost.xlsx", header=['status'], index=False)
 
 train_features = train_test_features[ids_train, :]
 test_features = train_test_features[ids_test, :]
@@ -105,13 +105,13 @@ conf_mtx_val = confusion_matrix(y_val_real, y_val_pred)
 
 
 def save_figure(fig, fn):
-    Path(f"{path}Figures/{suffix}/lr({model_params['learning_rate']})_it({model_params['iterations']})").mkdir(
+    Path(f"{path}Figures/{suffix}/catboost/lr({model_params['learning_rate']})_it({model_params['iterations']})").mkdir(
         parents=True,
         exist_ok=True)
     fig.write_image(
-        f"{path}Figures/{suffix}/lr({model_params['learning_rate']})_it({model_params['iterations']})/{fn}.png")
+        f"{path}Figures/{suffix}/catboost/lr({model_params['learning_rate']})_it({model_params['iterations']})/{fn}.png")
     fig.write_image(
-        f"{path}Figures/{suffix}/lr({model_params['learning_rate']})_it({model_params['iterations']})/{fn}.pdf")
+        f"{path}Figures/{suffix}/catboost/lr({model_params['learning_rate']})_it({model_params['iterations']})/{fn}.pdf")
 
 
 fig = ff.create_annotated_heatmap(conf_mtx_test, x=classes, y=classes, colorscale='Viridis')
@@ -156,7 +156,7 @@ save_figure(fig, "confusion_matrix_val_cat")
 
 metrics_df = pd.DataFrame.from_dict(metrics_dict)
 metrics_df.to_excel(
-    f"{path}Figures/{suffix}/lr({model_params['learning_rate']})_it({model_params['iterations']})/metrics_cat.xlsx",
+    f"{path}Figures/{suffix}/catboost/lr({model_params['learning_rate']})_it({model_params['iterations']})/metrics_cat.xlsx",
     index=True)
 
-plot_catboost_evolution(f"{path}Figures/{suffix}/lr({model_params['learning_rate']})_it({model_params['iterations']})/")
+plot_catboost_evolution(f"{path}Figures/{suffix}/catboost/lr({model_params['learning_rate']})_it({model_params['iterations']})/")
