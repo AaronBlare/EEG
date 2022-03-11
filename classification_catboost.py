@@ -9,10 +9,10 @@ from plot_evolution import plot_catboost_evolution
 
 data_path = 'E:/YandexDisk/EEG/Dataframes/'
 path = 'E:/YandexDisk/EEG/'
-data_file = 'dataframe_2nd_Day_TMS.xlsx'
+data_file = 'dataframe_2nd_Day_sham.xlsx'
 
-classes = ['right_im1', 'background']
-suffix = f"TMS_{'_'.join(classes)}"
+classes = ['right_im2', 'background']
+suffix = f"sham_{'_'.join(classes)}"
 
 df = pd.read_excel(data_path + data_file)
 df_classes = df[df['class'].str[:].isin(classes)]
@@ -51,18 +51,31 @@ test_features = train_test_features[ids_test, :]
 train_classes = [train_test_classes[i] for i in list(ids_train)]
 test_classes = [train_test_classes[i] for i in list(ids_test)]
 
-model_params = {'loss_function': 'Logloss',
-                'learning_rate': 0.05,
-                'depth': 6,
-                'min_data_in_leaf': 1,
-                'max_leaves': 31,
-                'verbose': 1,
-                'iterations': 10000,
-                'early_stopping_rounds': 100}
+if len(classes) == 2:
+    model_params = {'loss_function': 'Logloss',
+                    'learning_rate': 0.05,
+                    'depth': 6,
+                    'min_data_in_leaf': 1,
+                    'max_leaves': 31,
+                    'verbose': 1,
+                    'iterations': 10000,
+                    'early_stopping_rounds': 100}
+else:
+    model_params = {'classes_count': len(classes),
+                    'loss_function': 'MultiClass',
+                    'learning_rate': 0.06,
+                    'depth': 6,
+                    'min_data_in_leaf': 1,
+                    'max_leaves': 31,
+                    'verbose': 1,
+                    'iterations': 10000,
+                    'early_stopping_rounds': 100}
 
 model = CatBoost(params=model_params)
 model.fit(train_features, train_classes, eval_set=(test_features, test_classes))
 model.set_feature_names(features_names)
+features_importances = pd.DataFrame.from_dict(
+    {'feature': model.feature_names_, 'importance': list(model.feature_importances_)})
 model.save_model(f"{path}Models/{suffix}_epoch_{model.best_iteration_}_cat.model")
 
 train_pred = model.predict(train_features, prediction_type="Class")

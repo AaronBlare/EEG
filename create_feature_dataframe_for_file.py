@@ -6,11 +6,11 @@ from mne.externals.pymatreader import read_mat
 from mne.time_frequency import psd_welch
 
 data_path = 'E:/YandexDisk/EEG/Data/'
-data_files = ['1st_Day_background_recordings.mat']
+data_files = ['1st_Day.mat']
 
 dataframe_path = 'E:/YandexDisk/EEG/Dataframes/'
 
-background = True
+background = False
 
 mat_data = []
 for file_id in range(0, len(data_files)):
@@ -61,14 +61,15 @@ def calculate_num_trials(data, move_type):
             for trial_id in range(0, len(data[file_flag][subject_id][move_type]['trial'])):
                 if background:
                     if data[file_flag][subject_id][move_type]['trial'].shape[1] < min_trial_len:
-                        min_trial_len = data[file_flag][subject_id][move_type]['trial'][trial_id].shape[1]
+                        min_trial_len = data[file_flag][subject_id][move_type]['trial'].shape[1]
                 else:
                     if data[file_flag][subject_id][move_type]['trial'][trial_id].shape[1] < min_trial_len:
-                        min_trial_len = data[file_flag][subject_id][move_type]['trial'].shape[1]
+                        min_trial_len = data[file_flag][subject_id][move_type]['trial'][trial_id].shape[1]
     return num_trials, min_trial_len
 
 
-movement_types = ['right_real', 'right_quasi', 'right_im1', 'right_im2']
+movement_types = ['right_real', 'right_quasi', 'right_im1', 'right_im2',
+                  'left_real', 'left_quasi', 'left_im1', 'left_im2']
 num_trials_by_movement = {movement_type: 0 for movement_type in movement_types}
 min_trial_len_by_movement = []
 num_electrodes_by_movement = []
