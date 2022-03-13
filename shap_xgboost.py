@@ -55,7 +55,7 @@ probs = model.predict(dmat_val)
 
 explainer = shap.TreeExplainer(model, data=val_features, model_output='probability')
 shap_values = explainer.shap_values(val_features)
-
+## 1-probs[0] - (1-explainer.expected_value - sum(shap_values[0]))
 for per_id in range(0, len(ids_val)):
     for st_id, st in enumerate(classes):
         if len(classes) == 2:
