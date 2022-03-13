@@ -5,10 +5,10 @@ from pathlib import Path
 
 data_path = 'E:/YandexDisk/EEG/Dataframes/'
 path = 'E:/YandexDisk/EEG/'
-data_file = 'dataframe_1st_Day.xlsx'
+data_file = 'dataframe_2nd_Day_TMS_uV.xlsx'
 
-classes = ['right_im2', 'left_im2', 'background']
-suffix = f"1st_Day_{'_'.join(classes)}"
+classes = ['right_im2', 'background']
+suffix = f"TMS_{'_'.join(classes)}_uV"
 Path(f"{path}Files/{suffix}/").mkdir(parents=True, exist_ok=True)
 
 df = pd.read_excel(data_path + data_file)
@@ -17,8 +17,8 @@ df_classes = df_classes.rename(columns={'trial': 'index'})
 subjects_names = [item.split('_')[0] for item in list(df_classes['index'])]
 df_classes['subject'] = subjects_names
 
-test_subjects = ['S5', 'S6', 'S7', 'S8']
-mask = df_classes['index'].str[:2].isin(test_subjects)
+test_subjects = ['S10', 'S11', 'S12', 'S13']
+mask = df_classes['index'].str[:3].isin(test_subjects)
 df_test = df_classes[mask]
 df_train_val = df_classes[~mask]
 

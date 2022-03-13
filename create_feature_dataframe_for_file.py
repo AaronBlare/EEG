@@ -6,11 +6,12 @@ from mne.externals.pymatreader import read_mat
 from mne.time_frequency import psd_welch
 
 data_path = 'E:/YandexDisk/EEG/Data/'
-data_files = ['1st_Day.mat']
+data_files = ['DAY2_SHAM.mat']
 
 dataframe_path = 'E:/YandexDisk/EEG/Dataframes/'
 
-background = False
+background = True
+movement_types = ['right_real', 'right_quasi', 'right_im1', 'right_im2']
 
 mat_data = []
 for file_id in range(0, len(data_files)):
@@ -68,8 +69,6 @@ def calculate_num_trials(data, move_type):
     return num_trials, min_trial_len
 
 
-movement_types = ['right_real', 'right_quasi', 'right_im1', 'right_im2',
-                  'left_real', 'left_quasi', 'left_im1', 'left_im2']
 num_trials_by_movement = {movement_type: 0 for movement_type in movement_types}
 min_trial_len_by_movement = []
 num_electrodes_by_movement = []
@@ -143,7 +142,8 @@ def fill_data(data, raw_data, movement_types, trial_start, trial_len):
     return data, subjects
 
 
-data, subjects = fill_data(data, mat_data, movement_types, trial_start, min_trial_len)
+data_V, subjects = fill_data(data, mat_data, movement_types, trial_start, min_trial_len)
+data = {key: data_V[key] * 10**6 for key in data_V}
 
 freq_bands = [('Theta', 4, 8), ('Alpha', 8, 12), ('Beta', 12, 30), ('Gamma', 30, 45)]
 
@@ -222,7 +222,7 @@ df = pd.DataFrame(np.concatenate((subjects_features, np.c_[classes_names]), axis
 Path(dataframe_path).mkdir(parents=True, exist_ok=True)
 data_files_wo_extension = [data_file[:-4] for data_file in data_files]
 if background:
-    df.to_excel(f"{dataframe_path}/dataframe_{'_'.join(data_files_wo_extension)}_background.xlsx",
+    df.to_excel(f"{dataframe_path}/dataframe_{'_'.join(data_files_wo_extension)}_background_uV.xlsx",
                 header=True, index=False)
 else:
-    df.to_excel(f"{dataframe_path}/dataframe_{'_'.join(data_files_wo_extension)}.xlsx", header=True, index=False)
+    df.to_excel(f"{dataframe_path}/dataframe_{'_'.join(data_files_wo_extension)}_uV.xlsx", header=True, index=False)

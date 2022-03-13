@@ -2,8 +2,8 @@ import pandas as pd
 
 
 data_path = 'E:/YandexDisk/EEG/Dataframes/'
-data_file = 'dataframe_1st_Day_rec.xlsx'
-data_file_background = 'dataframe_1st_Day_background_recordings_background.xlsx'
+data_file = 'dataframe_DAY2_SHAM_uV.xlsx'
+data_file_background = 'dataframe_DAY2_SHAM_background_uV.xlsx'
 
 df = pd.read_excel(data_path + data_file)
 df_background = pd.read_excel(data_path + data_file_background)
@@ -16,4 +16,4 @@ for trial in df_background_trials:
 df_background['trial'] = background_trials
 
 df_final = pd.concat([df, df_background], axis=0)
-df_final.to_excel(f"{data_path}/dataframe_1st_Day.xlsx", header=True, index=False)
+df_final.to_excel(f"{data_path}/dataframe_2nd_Day_sham_uV.xlsx", header=True, index=False)
