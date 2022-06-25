@@ -3,12 +3,14 @@ import numpy as np
 import scipy
 from scipy.signal import butter, lfilter, welch
 from scipy import fftpack
+from sklearn.utils import shuffle
 from mne.externals.pymatreader import read_mat
 from tqdm import tqdm
 
+
 data_path = 'E:/YandexDisk/EEG/raw/'
 
-data_files = ['DAY2_SHAM.mat']
+data_files = ['1st_Day.mat']
 dataframe_path = 'E:/YandexDisk/EEG/Dataframes/'
 
 amplitude_characteristics = True
@@ -65,6 +67,7 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
 
 features_dict = {}
 features_names_dict = {'features': []}
+features_names_freq_dict = {'features': []}
 for movement in data:
     print(movement)
     for trial_id in tqdm(range(0, len(data[movement]))):
@@ -76,7 +79,7 @@ for movement in data:
         curr_data = data[movement][trial_id]
         denoised_data = butter_bandpass_filter(curr_data, 1.0, 50.0, sample_frequency)
 
-        for electrode_id in range(0, curr_data.shape[0]):
+        for electrode_id in range(0, len(electrodes_names)):
             electrode_name = electrodes_names[electrode_id]
 
             for freq_band in freq_bands:
@@ -133,6 +136,7 @@ for movement in data:
                 psd_key = f"{electrode_name}_{band_name}_psd"
                 if trial_id == 0 and movement == movements[0]:
                     features_names_dict['features'].append(psd_key)
+                    features_names_freq_dict['features'].append(psd_key)
                 if psd_key not in features_dict:
                     features_dict[psd_key] = [np.mean(psd[curr_freqs_ids])]
                 else:
@@ -155,6 +159,7 @@ for movement in data:
                 trp_key = f"{electrode_name}_{band_name}_trp"
                 if trial_id == 0 and movement == movements[0]:
                     features_names_dict['features'].append(trp_key)
+                    features_names_freq_dict['features'].append(trp_key)
                 if trp_key not in features_dict:
                     features_dict[trp_key] = [np.log(pow_act) - np.log(pow_rest)]
                 else:
@@ -169,6 +174,7 @@ for movement in data:
             paf_key = f"{electrode_name}_paf"
             if trial_id == 0 and movement == movements[0]:
                 features_names_dict['features'].append(paf_key)
+                features_names_freq_dict['features'].append(paf_key)
             if paf_key not in features_dict:
                 features_dict[paf_key] = [freqs[alpha_freqs_ids[np.argmax(ps[alpha_freqs_ids])]]]
             else:
@@ -177,6 +183,7 @@ for movement in data:
             iaf_key = f"{electrode_name}_iaf"
             if trial_id == 0 and movement == movements[0]:
                 features_names_dict['features'].append(iaf_key)
+                features_names_freq_dict['features'].append(iaf_key)
             if iaf_key not in features_dict:
                 features_dict[iaf_key] = [np.average(freqs[alpha_freqs_ids], weights=ps[alpha_freqs_ids])]
             else:
@@ -203,6 +210,10 @@ for movement in data:
 
 features_names_df = pd.DataFrame.from_dict(features_names_dict)
 features_names_df.to_excel(f"{dataframe_path}/features.xlsx", header=True, index=False)
+features_names_freq_df = pd.DataFrame.from_dict(features_names_freq_dict)
+features_names_freq_df.to_excel(f"{dataframe_path}/features_freq.xlsx", header=True, index=False)
 
 features_df = pd.DataFrame.from_dict(features_dict)
+features_df = shuffle(features_df)
+features_df.reset_index(inplace=True, drop=True)
 features_df.to_excel(f"{dataframe_path}/data.xlsx", header=True, index=False)
