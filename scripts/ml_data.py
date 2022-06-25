@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 import scipy
 from scipy.signal import butter, lfilter, welch
+from scipy import fftpack
 from mne.externals.pymatreader import read_mat
 from tqdm import tqdm
 
 data_path = 'E:/YandexDisk/EEG/raw/'
 
-data_files = ['1st_Day.mat']
+data_files = ['DAY2_SHAM.mat']
 dataframe_path = 'E:/YandexDisk/EEG/Dataframes/'
 
 amplitude_characteristics = True
@@ -21,20 +22,27 @@ for file_id in range(0, len(data_files)):
         if 'subs_ica' in curr_mat_data:
             electrodes_names = curr_mat_data['subs_ica'][0]['right_real']['label']
             sample_frequency = curr_mat_data['subs_ica'][0]['right_real']['fsample']
+            for subject_id in range(0, len(curr_mat_data['subs_ica'])):
+                for key in curr_mat_data['subs_ica'][subject_id]:
+                    if key not in data:
+                        data[key] = []
+                        data_indexes[key] = []
+                    for trial_id in range(0, len(curr_mat_data['subs_ica'][subject_id][key]['trial'])):
+                        data[key].append(curr_mat_data['subs_ica'][subject_id][key]['trial'][trial_id] * 10 ** 6)
+                        data_indexes[key].append(f"S{start_index + subject_id}_T{trial_id}_{key}")
+            start_index += len(curr_mat_data['subs_ica'])
         else:
             electrodes_names = curr_mat_data['res'][0]['right_real']['label']
             sample_frequency = curr_mat_data['res'][0]['right_real']['fsample']
-
-    for subject_id in range(0, len(curr_mat_data['subs_ica'])):
-        for key in curr_mat_data['subs_ica'][subject_id]:
-            if key not in data:
-                data[key] = []
-                data_indexes[key] = []
-            for trial_id in range(0, len(curr_mat_data['subs_ica'][subject_id][key]['trial'])):
-                data[key].append(curr_mat_data['subs_ica'][subject_id][key]['trial'][trial_id] * 10 ** 6)
-                data_indexes[key].append(f"S{start_index + subject_id}_T{trial_id}_{key}")
-
-    start_index += len(curr_mat_data['subs_ica'])
+            for subject_id in range(0, len(curr_mat_data['res'])):
+                for key in curr_mat_data['res'][subject_id]:
+                    if key not in data:
+                        data[key] = []
+                        data_indexes[key] = []
+                    for trial_id in range(0, len(curr_mat_data['res'][subject_id][key]['trial'])):
+                        data[key].append(curr_mat_data['res'][subject_id][key]['trial'][trial_id] * 10 ** 6)
+                        data_indexes[key].append(f"S{start_index + subject_id}_T{trial_id}_{key}")
+            start_index += len(curr_mat_data['res'])
     del curr_mat_data
 
 movements = list(data.keys())
@@ -83,43 +91,43 @@ for movement in data:
                     if trial_id == 0 and movement == movements[0]:
                         features_names_dict['features'].append(mean_key)
                     if mean_key not in features_dict:
-                        features_dict[mean_key] = [np.mean(filtered_data[electrode_id, 5000:])]
+                        features_dict[mean_key] = [np.mean(filtered_data[electrode_id, 5500:9500])]
                     else:
-                        features_dict[mean_key].append(np.mean(filtered_data[electrode_id, 5000:]))
+                        features_dict[mean_key].append(np.mean(filtered_data[electrode_id, 5500:9500]))
 
                     median_key = f"{electrode_name}_{band_name}_median"
                     if trial_id == 0 and movement == movements[0]:
                         features_names_dict['features'].append(median_key)
                     if median_key not in features_dict:
-                        features_dict[median_key] = [np.median(filtered_data[electrode_id, 5000:])]
+                        features_dict[median_key] = [np.median(filtered_data[electrode_id, 5500:9500])]
                     else:
-                        features_dict[median_key].append(np.median(filtered_data[electrode_id, 5000:]))
+                        features_dict[median_key].append(np.median(filtered_data[electrode_id, 5500:9500]))
 
                     std_key = f"{electrode_name}_{band_name}_std"
                     if trial_id == 0 and movement == movements[0]:
                         features_names_dict['features'].append(std_key)
                     if std_key not in features_dict:
-                        features_dict[std_key] = [np.std(filtered_data[electrode_id, 5000:])]
+                        features_dict[std_key] = [np.std(filtered_data[electrode_id, 5500:9500])]
                     else:
-                        features_dict[std_key].append(np.std(filtered_data[electrode_id, 5000:]))
+                        features_dict[std_key].append(np.std(filtered_data[electrode_id, 5500:9500]))
 
                     min_key = f"{electrode_name}_{band_name}_min"
                     if trial_id == 0 and movement == movements[0]:
                         features_names_dict['features'].append(min_key)
                     if min_key not in features_dict:
-                        features_dict[min_key] = [np.min(filtered_data[electrode_id, 5000:])]
+                        features_dict[min_key] = [np.min(filtered_data[electrode_id, 5500:9500])]
                     else:
-                        features_dict[min_key].append(np.min(filtered_data[electrode_id, 5000:]))
+                        features_dict[min_key].append(np.min(filtered_data[electrode_id, 5500:9500]))
 
                     max_key = f"{electrode_name}_{band_name}_max"
                     if trial_id == 0 and movement == movements[0]:
                         features_names_dict['features'].append(max_key)
                     if max_key not in features_dict:
-                        features_dict[max_key] = [np.max(filtered_data[electrode_id, 5000:])]
+                        features_dict[max_key] = [np.max(filtered_data[electrode_id, 5500:9500])]
                     else:
-                        features_dict[max_key].append(np.max(filtered_data[electrode_id, 5000:]))
+                        features_dict[max_key].append(np.max(filtered_data[electrode_id, 5500:9500]))
 
-                freqs, psd = welch(denoised_data[electrode_id, 5000:], sample_frequency)
+                freqs, psd = welch(denoised_data[electrode_id, 5500:9500], sample_frequency)
                 curr_freqs_ids = [freq_id for freq_id, freq in enumerate(list(freqs)) if
                                   (freq > band_low and freq < band_high)]
                 psd_key = f"{electrode_name}_{band_name}_psd"
@@ -130,8 +138,30 @@ for movement in data:
                 else:
                     features_dict[psd_key].append(np.mean(psd[curr_freqs_ids]))
 
-            ps_act = np.abs(np.fft.fft(denoised_data[electrode_id, 5000:])) ** 2
-            freqs_act = np.fft.fftfreq(denoised_data[electrode_id, 5000:].size, 1 / sample_frequency)
+                ps_rest = np.abs(np.fft.fft(denoised_data[electrode_id, 0:4000]))
+                freqs_rest = np.fft.fftfreq(denoised_data[electrode_id, 0:4000].size, 1 / sample_frequency)
+                ps_rest[np.abs(freqs_rest) < band_low] = 0
+                ps_rest[np.abs(freqs_rest) > band_high] = 0
+                filtered_rest = np.abs(fftpack.ifft(ps_rest)) ** 2
+                pow_rest = np.average(filtered_rest)
+
+                ps_act = np.abs(np.fft.fft(denoised_data[electrode_id, 5500:9500]))
+                freqs_act = np.fft.fftfreq(denoised_data[electrode_id, 5500:9500].size, 1 / sample_frequency)
+                ps_act[np.abs(freqs_act) < band_low] = 0
+                ps_act[np.abs(freqs_act) > band_high] = 0
+                filtered_act = np.abs(fftpack.ifft(ps_act)) ** 2
+                pow_act = np.average(filtered_act)
+
+                trp_key = f"{electrode_name}_{band_name}_trp"
+                if trial_id == 0 and movement == movements[0]:
+                    features_names_dict['features'].append(trp_key)
+                if trp_key not in features_dict:
+                    features_dict[trp_key] = [np.log(pow_act) - np.log(pow_rest)]
+                else:
+                    features_dict[trp_key].append(np.log(pow_act) - np.log(pow_rest))
+
+            ps_act = np.abs(np.fft.fft(denoised_data[electrode_id, 5500:9500])) ** 2
+            freqs_act = np.fft.fftfreq(denoised_data[electrode_id, 5500:9500].size, 1 / sample_frequency)
             idx = np.argsort(freqs_act)
             ps = ps_act[idx]
             freqs = freqs_act[idx]
