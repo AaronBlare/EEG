@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA, IncrementalPCA, KernelPCA, SparsePCA
+from sklearn.decomposition import PCA, IncrementalPCA, KernelPCA, SparsePCA, TruncatedSVD
 import plotly.graph_objects as go
 import plotly.express as px
 from scripts.plot_functions import plot_scatter_by_subject, plot_scatter
@@ -35,7 +35,7 @@ marker_symbols = ['circle', 'x']
 save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/PCA/'
 Path(save_path).mkdir(parents=True, exist_ok=True)
 
-pca = PCA(n_components=10, whiten=False)
+pca = PCA(n_components=320, whiten=False)
 data_pca = pca.fit_transform(data)
 data_pca = pd.DataFrame(data_pca[:, :2])
 data_pca['subject'] = subjects
@@ -88,7 +88,7 @@ for experiment in experiment_types:
 save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/KernelPCA/'
 Path(save_path).mkdir(parents=True, exist_ok=True)
 
-kpca = KernelPCA(kernel='rbf', fit_inverse_transform=True, gamma=None, n_components=10)
+kpca = KernelPCA(kernel='rbf', fit_inverse_transform=True, gamma=None, n_components=320)
 data_kpca = kpca.fit_transform(data)
 data_kpca = pd.DataFrame(data_kpca[:, :2])
 data_kpca['subject'] = subjects
@@ -105,5 +105,57 @@ for experiment in experiment_types:
 
     fig = go.Figure()
     plot_scatter(fig, experiment, marker_symbols, data_kpca, 'PC1', 'PC2', 'KernelPCA')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# Sparse PCA ===========================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/SparsePCA/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+spca = SparsePCA(n_components=10, alpha=0.001)
+spca.fit(data)
+data_spca = spca.transform(data)
+data_spca = pd.DataFrame(data_spca[:, :2])
+data_spca['subject'] = subjects
+data_spca['class'] = classes
+spca_columns = ["PC1", "PC2", 'subject', 'class']
+data_spca.columns = spca_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_spca, num_subjects,
+                            'PC1', 'PC2', 'SparcePCA')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_spca, 'PC1', 'PC2', 'SparsePCA')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# SVD ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/SVD/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+SVD_ = TruncatedSVD(n_components=100, algorithm='randomized', n_iter=5)
+SVD_.fit(data)
+data_svd = SVD_.transform(data)
+data_svd = pd.DataFrame(data_svd[:, :2])
+data_svd['subject'] = subjects
+data_svd['class'] = classes
+svd_columns = ["SVD1", "SVD2", 'subject', 'class']
+data_svd.columns = svd_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_svd, num_subjects,
+                            'SVD1', 'SVD2', 'SVD')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_svd, 'SVD1', 'SVD2', 'SVD')
     fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
     fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
