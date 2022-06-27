@@ -4,6 +4,7 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA, IncrementalPCA, KernelPCA, SparsePCA, TruncatedSVD
 from sklearn.random_projection import GaussianRandomProjection, SparseRandomProjection
+from sklearn.manifold import MDS, Isomap
 import plotly.graph_objects as go
 import plotly.express as px
 from scripts.plot_functions import plot_scatter_by_subject, plot_scatter
@@ -210,5 +211,56 @@ for experiment in experiment_types:
 
     fig = go.Figure()
     plot_scatter(fig, experiment, marker_symbols, data_srp, 'SRP1', 'SRP2', 'SRP')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# MDS ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/MDS/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+mds = MDS(n_components=100, metric=True)
+data_mds = mds.fit_transform(data)
+data_mds = pd.DataFrame(data_mds[:, :2])
+data_mds['subject'] = subjects
+data_mds['class'] = classes
+mds_columns = ["MDS1", "MDS2", 'subject', 'class']
+data_mds.columns = mds_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_mds, num_subjects,
+                            'MDS1', 'MDS2', 'MDS')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_mds, 'MDS1', 'MDS2', 'MDS')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# ISOMAP ===============================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/ISOMAP/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+isomap = Isomap(n_components=320, n_neighbors=5)
+isomap.fit(data)
+data_isomap = isomap.transform(data)
+data_isomap = pd.DataFrame(data_isomap[:, :2])
+data_isomap['subject'] = subjects
+data_isomap['class'] = classes
+isomap_columns = ["Feature1", "Feature2", 'subject', 'class']
+data_isomap.columns = isomap_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_isomap, num_subjects,
+                            'Feature1', 'Feature2', 'ISOMAP')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_isomap, 'Feature1', 'Feature2', 'ISOMAP')
     fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
     fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
