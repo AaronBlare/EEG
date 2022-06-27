@@ -3,8 +3,10 @@ import numpy as np
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA, IncrementalPCA, KernelPCA, SparsePCA, TruncatedSVD
+from sklearn.decomposition import MiniBatchDictionaryLearning, FastICA
 from sklearn.random_projection import GaussianRandomProjection, SparseRandomProjection
-from sklearn.manifold import MDS, Isomap
+from sklearn.manifold import MDS, Isomap, TSNE, LocallyLinearEmbedding
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import plotly.graph_objects as go
 import plotly.express as px
 from scripts.plot_functions import plot_scatter_by_subject, plot_scatter
@@ -262,5 +264,132 @@ for experiment in experiment_types:
 
     fig = go.Figure()
     plot_scatter(fig, experiment, marker_symbols, data_isomap, 'Feature1', 'Feature2', 'ISOMAP')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# MiniBatchDictionaryLearning ==========================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/MiniBatchDictionaryLearning/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+miniBatchDictLearning = MiniBatchDictionaryLearning(n_components=100, batch_size=200, alpha=1, n_iter=25)
+miniBatchDictLearning.fit(data)
+data_batch = miniBatchDictLearning.fit_transform(data)
+data_batch = pd.DataFrame(data_batch[:, :2])
+data_batch['subject'] = subjects
+data_batch['class'] = classes
+batch_columns = ["Feature1", "Feature2", 'subject', 'class']
+data_batch.columns = batch_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_batch, num_subjects,
+                            'Feature1', 'Feature2', 'MiniBatchDictionaryLearning')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_batch, 'Feature1', 'Feature2', 'MiniBatchDictionaryLearning')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# ICA ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/ICA/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+FastICA = FastICA(n_components=320, algorithm='parallel', whiten=True, tol=1e-3, max_iter=1000)
+data_ica = FastICA.fit_transform(data)
+data_ica = pd.DataFrame(data_ica[:, :2])
+data_ica['subject'] = subjects
+data_ica['class'] = classes
+ica_columns = ["IC1", "IC2", 'subject', 'class']
+data_ica.columns = ica_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_ica, num_subjects,
+                            'IC1', 'IC2', 'ICA')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_ica, 'IC1', 'IC2', 'ICA')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# t-SNE ================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/t-SNE/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+tsne = TSNE(n_components=2, learning_rate=300, perplexity=30, early_exaggeration=12, init='random')
+data_tsne = tsne.fit_transform(data)
+data_tsne = pd.DataFrame(data_tsne[:, :2])
+data_tsne['subject'] = subjects
+data_tsne['class'] = classes
+tsne_columns = ["Feature1", "Feature2", 'subject', 'class']
+data_tsne.columns = tsne_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_tsne, num_subjects,
+                            'Feature1', 'Feature2', 't-SNE')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_tsne, 'Feature1', 'Feature2', 't-SNE')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# LLE ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/LLE/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+lle = LocallyLinearEmbedding(n_components=4, n_neighbors=10, method='modified')
+lle.fit(data)
+data_lle = lle.transform(data)
+data_lle = pd.DataFrame(data_lle[:, :2])
+data_lle['subject'] = subjects
+data_lle['class'] = classes
+lle_columns = ["Feature1", "Feature2", 'subject', 'class']
+data_lle.columns = lle_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_lle, num_subjects,
+                            'Feature1', 'Feature2', 'LLE')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_lle, 'Feature1', 'Feature2', 'LLE')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# LDA ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/LDA/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+lda = LinearDiscriminantAnalysis(n_components=2)
+data_lda = lda.fit(data, classes.ravel()).transform(data)
+data_lda = pd.DataFrame(data_lda[:, :2])
+data_lda['subject'] = subjects
+data_lda['class'] = classes
+lda_columns = ["Feature1", "Feature2", 'subject', 'class']
+data_lda.columns = lda_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_lda, num_subjects,
+                            'Feature1', 'Feature2', 'LDA')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_lda, 'Feature1', 'Feature2', 'LDA')
     fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
     fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
