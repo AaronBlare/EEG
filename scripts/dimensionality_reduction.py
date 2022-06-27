@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA, IncrementalPCA, KernelPCA, SparsePCA, TruncatedSVD
+from sklearn.random_projection import GaussianRandomProjection, SparseRandomProjection
 import plotly.graph_objects as go
 import plotly.express as px
 from scripts.plot_functions import plot_scatter_by_subject, plot_scatter
@@ -157,5 +158,57 @@ for experiment in experiment_types:
 
     fig = go.Figure()
     plot_scatter(fig, experiment, marker_symbols, data_svd, 'SVD1', 'SVD2', 'SVD')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# GRP ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/GRP/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+GRP = GaussianRandomProjection(n_components=100, eps=0.5)
+GRP.fit(data)
+data_grp = GRP.transform(data)
+data_grp = pd.DataFrame(data_grp[:, :2])
+data_grp['subject'] = subjects
+data_grp['class'] = classes
+grp_columns = ["GRP1", "GRP2", 'subject', 'class']
+data_grp.columns = grp_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_grp, num_subjects,
+                            'GRP1', 'GRP2', 'GRP')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_grp, 'GRP1', 'GRP2', 'GRP')
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
+
+# SRP ==================================================================================================================
+
+save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment_name}/SRP/'
+Path(save_path).mkdir(parents=True, exist_ok=True)
+
+SRP = SparseRandomProjection(n_components=100, density='auto', eps=0.5, dense_output=False)
+SRP.fit(data)
+data_srp = SRP.transform(data)
+data_srp = pd.DataFrame(data_srp[:, :2])
+data_srp['subject'] = subjects
+data_srp['class'] = classes
+srp_columns = ["SRP1", "SRP2", 'subject', 'class']
+data_srp.columns = srp_columns
+
+for experiment in experiment_types:
+    fig = go.Figure()
+    plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data_srp, num_subjects,
+                            'SRP1', 'SRP2', 'SRP')
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.png")
+    fig.write_image(f"{save_path}subject_{'_'.join(experiment)}.pdf", format="pdf")
+
+    fig = go.Figure()
+    plot_scatter(fig, experiment, marker_symbols, data_srp, 'SRP1', 'SRP2', 'SRP')
     fig.write_image(f"{save_path}{'_'.join(experiment)}.png")
     fig.write_image(f"{save_path}{'_'.join(experiment)}.pdf", format="pdf")
