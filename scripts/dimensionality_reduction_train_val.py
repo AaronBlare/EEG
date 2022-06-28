@@ -9,18 +9,16 @@ from sklearn.manifold import MDS, Isomap, TSNE, LocallyLinearEmbedding
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import plotly.graph_objects as go
 import plotly.express as px
-from scripts.plot_functions import plot_scatter_by_subject
+from scripts.plot_functions import plot_scatter_train_val
 
 
-experiments = {'1st_day': [['right_real', 'left_real'], ['right_quasi', 'left_quasi'], ['right_im', 'left_im']],
-               '2nd_day_sham': [['right_im1', 'right_im2']],
-               '2nd_day_tms': [['right_im1', 'right_im2']]}
+experiments = {'1st_day': ['train', 'val']}
 
 for experiment in experiments:
 
     data_path = f'E:/YandexDisk/EEG/experiments/{experiment}/'
 
-    data_df = pd.read_excel(f'{data_path}data.xlsx')
+    data_df = pd.read_excel(f'{data_path}data_new.xlsx')
     features_df = pd.read_excel(f'{data_path}features_freq.xlsx')
     features = features_df['features'].tolist()
 
@@ -155,15 +153,13 @@ for experiment in experiments:
                     'LocallyLinearEmbedding': ['LLE1', 'LLE2'],
                     'LinearDiscriminantAnalysis': ['LDA1', 'LDA2']}
 
-    for experiment_type in experiments[experiment]:
-        curr_experiment_name = '_'.join(experiment_type)
-        save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment}/{curr_experiment_name}/'
-        Path(save_path).mkdir(parents=True, exist_ok=True)
-        for method in methods_dict:
-            axis1 = methods_dict[method][0]
-            axis2 = methods_dict[method][1]
-            fig = go.Figure()
-            plot_scatter_by_subject(fig, experiment_type, marker_symbols, colors, data_df, num_subjects,
-                                    axis1, axis2, method)
-            fig.write_image(f"{save_path}{method}.png")
-            fig.write_image(f"{save_path}{method}.pdf", format="pdf")
+    curr_experiment_name = '_'.join(experiments[experiment])
+    save_path = f'E:/YandexDisk/EEG/Figures/dimensionality_reduction/{experiment}/{curr_experiment_name}/'
+    Path(save_path).mkdir(parents=True, exist_ok=True)
+    for method in methods_dict:
+        axis1 = methods_dict[method][0]
+        axis2 = methods_dict[method][1]
+        fig = go.Figure()
+        plot_scatter_train_val(fig, experiments[experiment], marker_symbols, colors, data_df, axis1, axis2, method)
+        fig.write_image(f"{save_path}{method}.png")
+        fig.write_image(f"{save_path}{method}.pdf", format="pdf")

@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 
-def add_scatter_trace(fig, x, y, name, marker_symbol, mode='markers', size=8):
+def add_scatter_trace(fig, x, y, name, color, marker_symbol, mode='markers', size=8):
     showlegend = False if name == "" else True
     fig.add_trace(
         go.Scatter(
@@ -12,12 +12,13 @@ def add_scatter_trace(fig, x, y, name, marker_symbol, mode='markers', size=8):
             name=name,
             mode=mode,
             marker=dict(
+                color=color,
                 size=size,
                 opacity=0.9,
                 symbol=marker_symbol,
                 line=dict(
                     color='black',
-                    width=0.05
+                    width=0.3
                 )
             )
         )
@@ -40,7 +41,7 @@ def add_scatter_trace_subj(fig, x, y, name, subj, color, marker_symbol, mode='ma
                 symbol=marker_symbol,
                 line=dict(
                     color='black',
-                    width=0.05
+                    width=0.3
                 )
             ),
             legendgroup=f"{subj}",
@@ -138,7 +139,7 @@ def plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data, num_s
     for movement_id in range(0, len(experiment)):
         movement = experiment[movement_id]
         symbol = marker_symbols[movement_id]
-        curr_movement_data = data.loc[data['class'] == movement]
+        curr_movement_data = data.loc[data['class_simp'] == movement]
         for subject_id in range(0, num_subjects):
             curr_subject_data = curr_movement_data.loc[curr_movement_data['subject'] == f'S{subject_id}']
             add_scatter_trace_subj(fig,
@@ -152,17 +153,17 @@ def plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data, num_s
     legend_layout(fig, x_axis, y_axis, title)
 
 
-def plot_scatter(fig, experiment, marker_symbols, data, x_axis, y_axis, title):
-    for movement_id in range(0, len(experiment)):
-        movement = experiment[movement_id]
-        symbol = marker_symbols[0]
-        curr_movement_data = data.loc[data['class'] == movement]
+def plot_scatter_train_val(fig, experiment, marker_symbols, colors, data, x_axis, y_axis, title):
+    for subset_id in range(0, len(experiment)):
+        subset = experiment[subset_id]
+        symbol = marker_symbols[subset_id]
+        curr_subset_data = data.loc[data['split'] == subset]
         add_scatter_trace(fig,
-                          curr_movement_data[x_axis].values,
-                          curr_movement_data[y_axis].values,
-                          movement.split('_')[0],
+                          curr_subset_data[x_axis].values,
+                          curr_subset_data[y_axis].values,
+                          subset,
+                          colors[subset_id],
                           symbol)
     add_layout(fig, x_axis, y_axis, title)
-    fig.update_layout({'colorway': px.colors.qualitative.D3})
     fig.update_layout(legend_font_size=20)
     fig.update_layout(margin=go.layout.Margin(l=90, r=20, b=80, t=65, pad=0))
