@@ -156,14 +156,21 @@ def plot_scatter_by_subject(fig, experiment, marker_symbols, colors, data, num_s
 def plot_scatter_train_val(fig, experiment, marker_symbols, colors, data, x_axis, y_axis, title):
     for subset_id in range(0, len(experiment)):
         subset = experiment[subset_id]
-        symbol = marker_symbols[subset_id]
         curr_subset_data = data.loc[data['split'] == subset]
+        right_subset_data = curr_subset_data.loc[data['class_simp'].isin(['right_real', 'right_quasi', 'right_im'])]
+        left_subset_data = curr_subset_data.loc[data['class_simp'].isin(['left_real', 'left_quasi', 'left_im'])]
         add_scatter_trace(fig,
-                          curr_subset_data[x_axis].values,
-                          curr_subset_data[y_axis].values,
-                          subset,
+                          right_subset_data[x_axis].values,
+                          right_subset_data[y_axis].values,
+                          f"{subset} right",
                           colors[subset_id],
-                          symbol)
+                          marker_symbols[0])
+        add_scatter_trace(fig,
+                          left_subset_data[x_axis].values,
+                          left_subset_data[y_axis].values,
+                          f"{subset} left",
+                          colors[subset_id],
+                          marker_symbols[1])
     add_layout(fig, x_axis, y_axis, title)
     fig.update_layout(legend_font_size=20)
     fig.update_layout(margin=go.layout.Margin(l=90, r=20, b=80, t=65, pad=0))

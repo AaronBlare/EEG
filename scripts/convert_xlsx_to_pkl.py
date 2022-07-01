@@ -5,6 +5,6 @@ experiments = ['1st_day', '2nd_day_sham', '2nd_day_tms']
 
 for experiment in experiments:
     data_path = f'E:/YandexDisk/EEG/experiments/{experiment}/'
-    data_df = pd.read_excel(f'{data_path}data.xlsx')
+    data_df = pd.read_excel(f'{data_path}data.xlsx', index_col=0)
     with open(f'{data_path}data.pkl', 'wb') as handle:
         pickle.dump(data_df, handle, protocol=pickle.HIGHEST_PROTOCOL)
