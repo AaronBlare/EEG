@@ -64,7 +64,6 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
 
 features_dict = {}
 features_names_dict = {'features': []}
-features_names_freq_dict = {'features': []}
 for movement in data:
     print(movement)
     for trial_id in tqdm(range(0, len(data[movement]))):
@@ -94,8 +93,8 @@ for movement in data:
                     ind_max = np.argmax(freqs > band_high) - 1
                     curr_region_psd.append(np.trapz(psd[ind_min:ind_max], freqs[ind_min:ind_max]))
 
-                    ps_rest = np.abs(np.fft.fft(denoised_data[electrode_id, 0:4000]))
-                    freqs_rest = np.fft.fftfreq(denoised_data[electrode_id, 0:4000].size, 1 / sample_frequency)
+                    ps_rest = np.abs(np.fft.fft(denoised_data[electrode_id, 500:4500]))
+                    freqs_rest = np.fft.fftfreq(denoised_data[electrode_id, 500:4500].size, 1 / sample_frequency)
                     ps_rest[np.abs(freqs_rest) < band_low] = 0
                     ps_rest[np.abs(freqs_rest) > band_high] = 0
                     filtered_rest = np.abs(fftpack.ifft(ps_rest)) ** 2
@@ -107,12 +106,11 @@ for movement in data:
                     ps_act[np.abs(freqs_act) > band_high] = 0
                     filtered_act = np.abs(fftpack.ifft(ps_act)) ** 2
                     pow_act = np.average(filtered_act)
-                    curr_region_trp.append(np.log(pow_act) - np.log(pow_rest))
+                    curr_region_trp.append(np.abs(np.log(pow_act) - np.log(pow_rest)))
 
                 psd_key = f"{region}_{band_name}_PSD"
                 if trial_id == 0 and movement == movements[0]:
                     features_names_dict['features'].append(psd_key)
-                    features_names_freq_dict['features'].append(psd_key)
                 if psd_key not in features_dict:
                     features_dict[psd_key] = [np.mean(curr_region_psd)]
                 else:
@@ -121,7 +119,6 @@ for movement in data:
                 trp_key = f"{region}_{band_name}_TRP"
                 if trial_id == 0 and movement == movements[0]:
                     features_names_dict['features'].append(trp_key)
-                    features_names_freq_dict['features'].append(trp_key)
                 if trp_key not in features_dict:
                     features_dict[trp_key] = [np.mean(curr_region_trp)]
                 else:
@@ -146,7 +143,6 @@ for movement in data:
             paf_key = f"{region}_PAF"
             if trial_id == 0 and movement == movements[0]:
                 features_names_dict['features'].append(paf_key)
-                features_names_freq_dict['features'].append(paf_key)
             if paf_key not in features_dict:
                 features_dict[paf_key] = [np.mean(curr_region_paf)]
             else:
@@ -155,7 +151,6 @@ for movement in data:
             iaf_key = f"{region}_IAF"
             if trial_id == 0 and movement == movements[0]:
                 features_names_dict['features'].append(iaf_key)
-                features_names_freq_dict['features'].append(iaf_key)
             if iaf_key not in features_dict:
                 features_dict[iaf_key] = [np.mean(curr_region_iaf)]
             else:
@@ -182,8 +177,6 @@ for movement in data:
 
 features_names_df = pd.DataFrame.from_dict(features_names_dict)
 features_names_df.to_excel(f"{dataframe_path}/features.xlsx", header=True, index=False)
-features_names_freq_df = pd.DataFrame.from_dict(features_names_freq_dict)
-features_names_freq_df.to_excel(f"{dataframe_path}/features_freq.xlsx", header=True, index=False)
 
 features_df = pd.DataFrame.from_dict(features_dict)
 features_df = shuffle(features_df)
