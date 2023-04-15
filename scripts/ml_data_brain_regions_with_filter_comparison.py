@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
 import scipy
-from scipy.signal import butter, lfilter, periodogram
+from scipy.signal import butter, lfilter, periodogram, filtfilt, iirfilter
 from scipy import fftpack
 from sklearn.utils import shuffle
 from mne.externals.pymatreader import read_mat
+from mne.filter import filter_data
 from tqdm import tqdm
+from continuous_wavelet_transform import *
 import pickle
 
 
@@ -53,13 +55,36 @@ movements = list(data.keys())
 freq_bands = [('Alpha', 8, 12), ('Beta', 12, 30)]
 
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
+def butter_bandpass(lowcut, highcut, fs, order=4):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
     b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=4):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
     y = lfilter(b, a, data)
     return y
+
+
+def filtfilt_filter(data, lowcut, highcut, fs, order=4):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = filtfilt(b, a, data)
+    return y
+
+
+def cwt_filtration(signal, low, high, scale_count):
+    mother_wavelet = wavelet.DOG(2)
+    wave, scales, _, _, _, _ = wavelet.cwt(signal, 0.25, 0.25, 0.5, scale_count, mother_wavelet)
+    for j in range(0, len(signal)):
+        for i in range(0, low):
+            wave[i][j] = 0.0
+        for i in range(high, 25):
+            wave[i][j] = 0.0
+    signal = wavelet.icwt(wave, scales, 0.25, 0.25, mother_wavelet)
+    return signal
 
 
 features_dict = {}
@@ -73,7 +98,15 @@ for movement in data:
         else:
             features_dict['index'].append(curr_index)
         curr_data = data[movement][trial_id]
-        denoised_data = butter_bandpass_filter(curr_data, 1.0, 50.0, sample_frequency)
+        denoised_data1 = cwt_filtration(curr_data[0], 1, 40, 100)
+        denoised_data2 = filter_data(curr_data, sample_frequency, 1, 40, method='iir')
+        denoised_data3 = butter_bandpass_filter(curr_data, 1.0, 40.0, sample_frequency)
+        denoised_data4 = filtfilt_filter(curr_data, 1.0, 40.0, sample_frequency)
+        np.savetxt("cur.csv", curr_data, delimiter=",")
+        np.savetxt("denCwt.csv", denoised_data1, delimiter=",")
+        np.savetxt("denMne.csv", denoised_data2, delimiter=",")
+        np.savetxt("denBut.csv", denoised_data3, delimiter=",")
+        np.savetxt("denFil.csv", denoised_data4, delimiter=",")
 
         for freq_band in freq_bands:
             band_name = freq_band[0]
